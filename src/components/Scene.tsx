@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import Car from './Car'
-import Road from './Road'
+import SmoothRoad from './SmoothRoad'
 import ObstacleManager from './ObstacleManager'
 import ExplosionEffect from './ExplosionEffect'
 // import RetrowaveSun from './RetrowaveSun'
@@ -144,7 +144,7 @@ function Scene({ onHUDUpdate }: SceneProps) {
       />
       
       {/* <RetrowaveSun /> */}
-      <Road carZ={carPosition.z} />
+      <SmoothRoad carZ={carPosition.z} />
       <ObstacleManager 
         carPosition={carPosition} 
         obstacles={obstacles}
