@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, memo } from 'react'
+import { useRef, useState, useEffect, memo, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group } from 'three'
 import { ObstacleData, checkCollisions, getObstaclesInRange } from '../utils/collision'
@@ -511,31 +511,48 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     return "#ff6600"                  // Normal orange
   }
 
+  // Memoized materials to prevent recreation on every render
+  const carBodyMaterial = useMemo(() => {
+    return <meshStandardMaterial color={getCarColor()} />
+  }, [isColliding, spreadShotActive, isBoosted])
+
+  const carAccentMaterial = useMemo(() => {
+    return <meshStandardMaterial color={getAccentColor()} />
+  }, [isColliding, spreadShotActive, isBoosted])
+
+  const wheelMaterial = useMemo(() => {
+    return <meshStandardMaterial color="#222" />
+  }, [])
+
+  const windshieldMaterial = useMemo(() => {
+    return <meshStandardMaterial color="#00ffff" transparent opacity={0.7} />
+  }, [])
+
   return (
     <group ref={carRef} position={position}>
       <mesh position={[0, 0.5, 0]} geometry={geometryCache.getGeometry('car-body')}>
-        <meshStandardMaterial color={getCarColor()} />
+        {carBodyMaterial}
       </mesh>
       
       <mesh position={[0, 0.2, 0]} geometry={geometryCache.getGeometry('car-accent')}>
-        <meshStandardMaterial color={getAccentColor()} />
+        {carAccentMaterial}
       </mesh>
       
       <mesh position={[-0.7, 0, 1.3]} geometry={geometryCache.getGeometry('car-wheel')}>
-        <meshStandardMaterial color="#222" />
+        {wheelMaterial}
       </mesh>
       <mesh position={[0.7, 0, 1.3]} geometry={geometryCache.getGeometry('car-wheel')}>
-        <meshStandardMaterial color="#222" />
+        {wheelMaterial}
       </mesh>
       <mesh position={[-0.7, 0, -1.3]} geometry={geometryCache.getGeometry('car-wheel')}>
-        <meshStandardMaterial color="#222" />
+        {wheelMaterial}
       </mesh>
       <mesh position={[0.7, 0, -1.3]} geometry={geometryCache.getGeometry('car-wheel')}>
-        <meshStandardMaterial color="#222" />
+        {wheelMaterial}
       </mesh>
       
       <mesh position={[0, 0.9, 0.5]} geometry={geometryCache.getGeometry('car-windshield')}>
-        <meshStandardMaterial color="#00ffff" transparent opacity={0.7} />
+        {windshieldMaterial}
       </mesh>
     </group>
   )
