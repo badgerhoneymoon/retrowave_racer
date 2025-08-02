@@ -5,6 +5,7 @@ import { ObstacleData, checkCollisions, getObstaclesInRange } from '../utils/col
 import { geometryCache } from '../utils/geometryCache'
 import { useCarWeapons } from '../hooks/useCarWeapons'
 import { useCarPhysics } from '../hooks/useCarPhysics'
+import { useCarPowerups } from '../hooks/useCarPowerups'
 
 interface CarProps {
   position?: [number, number, number]
@@ -25,15 +26,12 @@ interface CarProps {
 function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacleCollected, onRewardCollected, onShoot, onSpreadShoot, onMissileShoot, score = 0, onScoreUpdate, onEnemyCarBounce }: CarProps) {
   const carRef = useRef<Group>(null)
   
-  // Physics hook
+  // Hooks
   const physics = useCarPhysics()
+  const powerups = useCarPowerups()
   const [isColliding, setIsColliding] = useState(false)
-  const [isBoosted, setIsBoosted] = useState(false)
-  const [boostEndTime, setBoostEndTime] = useState(0)
   // Track last position sent to parent to avoid spamming state updates
   const lastSentPositionRef = useRef({ x: 0, z: 0 })
-  const boostTransitionSpeedRef = useRef(1.0) // Multiplier for smooth transition
-  const [targetBoostSpeed, setTargetBoostSpeed] = useState(1.0) // Target boost multiplier
   // Weapon systems hook
   const weapons = useCarWeapons({
     score,
@@ -122,11 +120,11 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
 
     // Cache initial trigonometric calculations (will be updated after rotation)
 
-    // Check if boost expired and handle smooth transition
     const currentTime = state.clock.elapsedTime * 1000
     
-    // Update weapon systems
+    // Update systems
     weapons.updateSpreadShot(currentTime)
+    const boostTransitionSpeed = powerups.updateBoost(currentTime, delta)
     
     // Handle shooting
     if (keys.shoot) {
@@ -137,23 +135,10 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     if (keys.missile) {
       weapons.handleMissileShoot(currentTime, physics.carPositionRef.current, physics.carRotationRef.current, physics.speedRef.current)
     }
-    if (isBoosted && currentTime > boostEndTime) {
-      setIsBoosted(false)
-      setTargetBoostSpeed(1.0) // Reset target speed when boost expires
-    }
-    
-    // Smooth boost transition - gradually transition to target speed
-    if (isBoosted) {
-      // When boosted, quickly ramp up to target boost speed
-      boostTransitionSpeedRef.current = Math.min(targetBoostSpeed, boostTransitionSpeedRef.current + (5.0 * delta)) // Fast ramp up
-    } else {
-      // When not boosted, gradually return to 1.0x speed
-      boostTransitionSpeedRef.current = Math.max(1.0, boostTransitionSpeedRef.current - (2.0 * delta)) // Slower ramp down for smooth transition
-    }
 
     // Update physics using the hook
     const { newX, newZ, sinAngle, cosAngle } = physics.updatePhysics({
-      boostTransitionSpeed: boostTransitionSpeedRef.current,
+      boostTransitionSpeed,
       delta,
       keys
     })
@@ -165,15 +150,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     if (collision.hit) {
       if (collision.isBoost) {
         // Speed boost collected!
-        if (isBoosted) {
-          // Already boosted - add cumulative 10% (0.1) to current boost
-          setTargetBoostSpeed(prev => Math.min(2.0, prev + 0.1)) // Cap at 2.0x (100% boost)
-        } else {
-          // First boost - set to 1.35x (+35%)
-          setIsBoosted(true)
-          setTargetBoostSpeed(1.35)
-        }
-        setBoostEndTime(currentTime + 5000) // Reset to 5 seconds
+        powerups.collectBoost(currentTime)
         setIsColliding(false)
         
         // Remove the collected boost obstacle
@@ -273,7 +250,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     // Direct DOM updates for better performance (bypass React state)
     frameCountRef.current += 1 
     if (frameCountRef.current % 6 === 0) {
-      const boostTimeRemaining = isBoosted ? Math.max(0, boostEndTime - currentTime) : 0
+      const powerupState = powerups.getPowerupState(currentTime)
       const weaponState = weapons.getWeaponState(currentTime)
       
       // Update speed display directly
@@ -282,12 +259,12 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
       const speedBarElement = document.querySelector('[data-hud="speed-bar"]') as HTMLElement
       if (speedElement) {
         speedElement.textContent = `${speedPercent}%`
-        speedElement.style.color = isBoosted ? '#00ff00' : '#00ffff'
+        speedElement.style.color = powerupState.isBoosted ? '#00ff00' : '#00ffff'
       }
       if (speedBarElement) {
         speedBarElement.style.width = `${Math.min(100, speedPercent)}%`
-        speedBarElement.style.backgroundColor = isBoosted ? '#00ff00' : '#00ffff'
-        speedBarElement.style.boxShadow = isBoosted ? '0 0 10px #00ff00' : '0 0 10px #00ffff'
+        speedBarElement.style.backgroundColor = powerupState.isBoosted ? '#00ff00' : '#00ffff'
+        speedBarElement.style.boxShadow = powerupState.isBoosted ? '0 0 10px #00ff00' : '0 0 10px #00ffff'
       }
       
       // Update score display directly
@@ -308,14 +285,14 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
       const boostValueElement = document.querySelector('[data-hud="boost-value"]') as HTMLElement
       const boostBarElement = document.querySelector('[data-hud="boost-bar"]') as HTMLElement
       if (boostContainer) {
-        boostContainer.style.display = isBoosted ? 'block' : 'none'
+        boostContainer.style.display = powerupState.isBoosted ? 'block' : 'none'
       }
-      if (boostValueElement && isBoosted) {
-        const boostSeconds = Math.max(0, Math.ceil(boostTimeRemaining / 1000))
+      if (boostValueElement && powerupState.isBoosted) {
+        const boostSeconds = Math.max(0, Math.ceil(powerupState.boostTimeRemaining / 1000))
         boostValueElement.textContent = `${boostSeconds}s`
       }
-      if (boostBarElement && isBoosted) {
-        boostBarElement.style.width = `${(boostTimeRemaining / 5000) * 100}%`
+      if (boostBarElement && powerupState.isBoosted) {
+        boostBarElement.style.width = `${(powerupState.boostTimeRemaining / 5000) * 100}%`
       }
       
       // Update spread shot display directly
@@ -344,25 +321,25 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
   const getCarColor = () => {
     if (isColliding) return "#ffffff" // White flash on collision
     if (weapons.spreadShotActive) return "#ffff00" // Yellow when spread shot active
-    if (isBoosted) return "#00ff00"   // Green when boosted
+    if (powerups.isBoosted) return "#00ff00"   // Green when boosted
     return "#ff0080"                  // Normal pink
   }
   
   const getAccentColor = () => {
     if (isColliding) return "#ffffff" // White flash on collision
     if (weapons.spreadShotActive) return "#ffff80" // Light yellow when spread shot active
-    if (isBoosted) return "#80ff80"   // Light green when boosted
+    if (powerups.isBoosted) return "#80ff80"   // Light green when boosted
     return "#ff6600"                  // Normal orange
   }
 
   // Memoized materials to prevent recreation on every render
   const carBodyMaterial = useMemo(() => {
     return <meshStandardMaterial color={getCarColor()} />
-  }, [isColliding, weapons.spreadShotActive, isBoosted])
+  }, [isColliding, weapons.spreadShotActive, powerups.isBoosted])
 
   const carAccentMaterial = useMemo(() => {
     return <meshStandardMaterial color={getAccentColor()} />
-  }, [isColliding, weapons.spreadShotActive, isBoosted])
+  }, [isColliding, weapons.spreadShotActive, powerups.isBoosted])
 
   const wheelMaterial = useMemo(() => {
     return <meshStandardMaterial color="#222" />
