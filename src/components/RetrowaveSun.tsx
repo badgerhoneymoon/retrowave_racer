@@ -46,18 +46,16 @@ function RetrowaveSun({ carZ }: RetrowaveSunProps) {
     return tex
   }, [])
 
-  // Position sun slightly above the horizon and well ahead of the car
   return (
     <group position={[0, 10, carZ - 120]}>
       <mesh>
-        {/* A higher-segment circle for smooth edges */}
         <circleGeometry args={[12, 64]} />
         <meshBasicMaterial
           // eslint-disable-next-line react/no-unknown-property
           map={texture}
           transparent
           // eslint-disable-next-line react/no-unknown-property
-          toneMapped={false} // keep colors vibrant
+          toneMapped={false}
         />
       </mesh>
     </group>

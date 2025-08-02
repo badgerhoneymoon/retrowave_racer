@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState } from 'react'
 import Car from './Car'
 import Road from './Road'
 import ObstacleManager from './ObstacleManager'
@@ -23,19 +23,10 @@ interface SceneProps {
 }
 
 function Scene({ onHUDUpdate }: SceneProps) {
-    // Car position affects only a subset of children but was updating every frame, causing Scene to re-render \n  // Use throttling to limit state updates to ~20 fps to avoid unnecessary React work\n  const [carPosition, setCarPosition] = useState({ x: 0, z: 0 })\n  const lastCarPosUpdateRef = useRef(0)\n  const THROTTLE_MS = 50 // 1000 / 20 = 50 ms
+  const [carPosition, setCarPosition] = useState({ x: 0, z: 0 })
   const [obstacles, setObstacles] = useState<ObstacleData[]>([])
   const [explosions, setExplosions] = useState<Explosion[]>([])
   const [projectiles, setProjectiles] = useState<Projectile[]>([])
-
-  // Throttled position updater to minimize Scene re-renders
-  const handleCarPositionChange = useCallback((pos: { x: number; z: number }) => {
-    const now = performance.now()
-    if (now - lastCarPosUpdateRef.current > THROTTLE_MS) {
-      lastCarPosUpdateRef.current = now
-      setCarPosition(pos)
-    }
-  }, [])
 
   const handleObstaclesUpdate = (newObstacles: ObstacleData[]) => {
     setObstacles(newObstacles)
@@ -114,7 +105,7 @@ function Scene({ onHUDUpdate }: SceneProps) {
         color="#ff00ff"
       />
       
-      <RetrowaveSun carZ={carPosition.z} />
+      <RetrowaveSun carZ={Math.round(carPosition.z / 2) * 2} />
       <Road carZ={carPosition.z} />
       <ObstacleManager 
         carPosition={carPosition} 
