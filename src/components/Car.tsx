@@ -10,16 +10,17 @@ interface CarProps {
   onDistanceChange?: (distance: number) => void
   obstacles?: ObstacleData[]
   onObstacleCollected?: (obstacleId: string) => void
-  onHUDUpdate?: (hudData: { speed: number, isBoosted: boolean, boostTimeRemaining: number, score: number, spreadShotActive: boolean, spreadShotTimeRemaining: number }) => void
+  onHUDUpdate?: (hudData: { speed: number, isBoosted: boolean, boostTimeRemaining: number, score: number, spreadShotActive: boolean, spreadShotTimeRemaining: number, missilesRemaining: number }) => void
   onRewardCollected?: (points: number, position: [number, number, number]) => void
   onShoot?: (startPosition: [number, number, number], angle: number, carVelocity: number) => void
   onSpreadShoot?: (shots: Array<{ position: [number, number, number], angle: number, carVelocity: number }>) => void
+  onMissileShoot?: (startPosition: [number, number, number], angle: number, carVelocity: number) => void
   score?: number
   onScoreUpdate?: (newScore: number) => void
   onEnemyCarBounce?: (obstacleId: string, newVelocity: number, bounceDistance: number) => void
 }
 
-function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacleCollected, onHUDUpdate, onRewardCollected, onShoot, onSpreadShoot, score = 0, onScoreUpdate, onEnemyCarBounce }: CarProps) {
+function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacleCollected, onHUDUpdate, onRewardCollected, onShoot, onSpreadShoot, onMissileShoot, score = 0, onScoreUpdate, onEnemyCarBounce }: CarProps) {
   const carRef = useRef<Group>(null)
   // Convert to refs to avoid React re-renders every frame
   const carPositionRef = useRef({ x: 0, z: 0 })
@@ -38,12 +39,16 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
   const [spreadShotActive, setSpreadShotActive] = useState(false)
   const [spreadShotEndTime, setSpreadShotEndTime] = useState(0)
   const [lastSpreadShotScore, setLastSpreadShotScore] = useState(0)
+  const [lastMissileTime, setLastMissileTime] = useState(0)
+  const [missilesRemaining, setMissilesRemaining] = useState(5)
+  const frameCountRef = useRef(0) // Proper frame counter
   const keysRef = useRef({
     left: false,
     right: false,
     up: false,
     down: false,
-    shoot: false
+    shoot: false,
+    missile: false
   })
 
   useEffect(() => {
@@ -68,6 +73,9 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
         case 'Space':
           keysRef.current.shoot = true
           break
+        case 'KeyM':
+          keysRef.current.missile = true
+          break
       }
     }
 
@@ -91,6 +99,9 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
           break
         case 'Space':
           keysRef.current.shoot = false
+          break
+        case 'KeyM':
+          keysRef.current.missile = false
           break
       }
     }
@@ -164,6 +175,20 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
           onShoot(shootPosition, carRotationRef.current, speedRef.current)
           setLastShotTime(currentTime)
         }
+      }
+    }
+    
+    // Handle missile shooting
+    if (keys.missile && onMissileShoot && missilesRemaining > 0) {
+      const missileCooldown = 500 // Reduced to 0.5 seconds between missiles
+      if (currentTime - lastMissileTime > missileCooldown) {
+        const shootOffsetDistance = 3
+        const shootX = carPositionRef.current.x - Math.sin(carRotationRef.current) * shootOffsetDistance
+        const shootZ = carPositionRef.current.z - Math.cos(carRotationRef.current) * shootOffsetDistance
+        const shootPosition: [number, number, number] = [shootX, 2, shootZ] // Higher Y for missiles
+        onMissileShoot(shootPosition, carRotationRef.current, speedRef.current)
+        setLastMissileTime(currentTime)
+        setMissilesRemaining(prev => Math.max(0, prev - 1)) // Prevent negative values
       }
     }
     if (isBoosted && currentTime > boostEndTime) {
@@ -307,6 +332,21 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
           x: Math.max(-18, Math.min(18, newX)),
           z: newZ
         }
+      } else if (collision.isRocketLauncher) {
+        // Rocket launcher collected!
+        setMissilesRemaining(prev => prev + 5) // Add 5 missiles to current count (accumulate)
+        setIsColliding(false)
+        
+        // Remove the collected rocket launcher obstacle
+        if (onObstacleCollected && collision.obstacle) {
+          onObstacleCollected(collision.obstacle.id)
+        }
+        
+        // Continue movement - don't stop for rocket launcher
+        carPositionRef.current = {
+          x: Math.max(-18, Math.min(18, newX)),
+          z: newZ
+        }
       } else {
         // Regular collision - bounce only if speed is significant
         setIsColliding(true)
@@ -373,22 +413,22 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     // Make camera look at car
     camera.lookAt(carPositionRef.current.x, 0, carPositionRef.current.z)
 
-    // Report position to parent component – throttled to reduce parent re-renders
+    // Report position to parent component – with smoother throttling
     if (onPositionChange) {
       const last = lastSentPositionRef.current
       const current = carPositionRef.current
       const dx = Math.abs(current.x - last.x)
       const dz = Math.abs(current.z - last.z)
-      // Notify only when moved significantly (tweak thresholds as needed)
-      if (dx > 0.25 || dz > 0.5) {
+      // Use larger thresholds to reduce frequency and prevent stutters
+      if (dx > 1.0 || dz > 2.0) {
         onPositionChange(current)
         lastSentPositionRef.current = { ...current }
       }
     }
 
     // Report HUD data to parent component (throttled to every 3 frames)
-    const frameCount = Math.floor(currentTime / 16.67) // Approximate frame count
-    if (onHUDUpdate && frameCount % 3 === 0) {
+    frameCountRef.current += 1 // Proper frame counting
+    if (onHUDUpdate && frameCountRef.current % 3 === 0) {
       const boostTimeRemaining = isBoosted ? Math.max(0, boostEndTime - currentTime) : 0
       const spreadShotTimeRemaining = spreadShotActive ? Math.max(0, spreadShotEndTime - currentTime) : 0
       onHUDUpdate({ 
@@ -397,7 +437,8 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
         boostTimeRemaining, 
         score, 
         spreadShotActive, 
-        spreadShotTimeRemaining 
+        spreadShotTimeRemaining,
+        missilesRemaining
       })
     }
 

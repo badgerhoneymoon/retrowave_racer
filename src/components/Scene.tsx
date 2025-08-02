@@ -5,6 +5,8 @@ import ObstacleManager from './ObstacleManager'
 import ExplosionEffect from './ExplosionEffect'
 import RetrowaveSun from './RetrowaveSun'
 import PlasmaProjectile from './PlasmaProjectile'
+import AreaMissile from './AreaMissile'
+import MissileExplosion from './MissileExplosion'
 import { ObstacleData } from '../utils/collision'
 
 interface Explosion {
@@ -19,8 +21,20 @@ interface Projectile {
   carVelocity: number
 }
 
+interface Missile {
+  id: string
+  position: [number, number, number]
+  angle: number
+  carVelocity: number
+}
+
+interface MissileExplosion {
+  id: string
+  position: [number, number, number]
+}
+
 interface SceneProps {
-  onHUDUpdate: (hudData: { speed: number, isBoosted: boolean, boostTimeRemaining: number, score: number, spreadShotActive: boolean, spreadShotTimeRemaining: number }) => void
+  onHUDUpdate: (hudData: { speed: number, isBoosted: boolean, boostTimeRemaining: number, score: number, spreadShotActive: boolean, spreadShotTimeRemaining: number, missilesRemaining: number }) => void
 }
 
 function Scene({ onHUDUpdate }: SceneProps) {
@@ -28,6 +42,8 @@ function Scene({ onHUDUpdate }: SceneProps) {
   const [obstacles, setObstacles] = useState<ObstacleData[]>([])
   const [explosions, setExplosions] = useState<Explosion[]>([])
   const [projectiles, setProjectiles] = useState<Projectile[]>([])
+  const [missiles, setMissiles] = useState<Missile[]>([])
+  const [missileExplosions, setMissileExplosions] = useState<MissileExplosion[]>([])
   const [score, setScore] = useState(0)
 
   const handleObstaclesUpdate = (newObstacles: ObstacleData[]) => {
@@ -132,6 +148,59 @@ function Scene({ onHUDUpdate }: SceneProps) {
     })
   }, [])
 
+  const handleMissileShoot = useCallback((startPosition: [number, number, number], angle: number, carVelocity: number) => {
+    setMissiles(prev => {
+      console.log('🚀 Firing missile. Current missiles in flight:', prev.length)
+      
+      // Removed artificial missile limit - let missiles fly naturally until they hit ground
+      const missileId = `missile-${Date.now()}-${Math.random()}`
+      const newMissiles = [...prev, {
+        id: missileId,
+        position: startPosition,
+        angle: angle,
+        carVelocity: carVelocity
+      }]
+      
+      console.log('🚀 Total missiles after firing:', newMissiles.length)
+      return newMissiles
+    })
+  }, [])
+
+  const handleMissileHit = useCallback((missileId: string, explosionCenter: [number, number, number], hitObstacleIds: string[]) => {
+    console.log('💥 Missile hit ground/target:', missileId, 'destroying', hitObstacleIds.length, 'cars')
+    // Remove the missile
+    setMissiles(prev => prev.filter(missile => missile.id !== missileId))
+    
+    // Create missile explosion effect
+    const explosionId = `missile-explosion-${Date.now()}-${Math.random()}`
+    setMissileExplosions(prev => [...prev, {
+      id: explosionId,
+      position: explosionCenter
+    }])
+    
+    // Remove all hit obstacles and add score
+    setObstacles(prev => {
+      const remainingObstacles = prev.filter(obs => !hitObstacleIds.includes(obs.id))
+      
+      // Add score for each destroyed car
+      const destroyedCars = hitObstacleIds.length
+      if (destroyedCars > 0) {
+        setScore(prevScore => prevScore + (destroyedCars * 25)) // 25 points per car destroyed
+      }
+      
+      return remainingObstacles
+    })
+  }, [])
+
+  const handleMissileExpire = useCallback((missileId: string) => {
+    console.log('⏰ Missile expired (distance limit):', missileId)
+    setMissiles(prev => prev.filter(missile => missile.id !== missileId))
+  }, [])
+
+  const handleMissileExplosionComplete = useCallback((explosionId: string) => {
+    setMissileExplosions(prev => prev.filter(exp => exp.id !== explosionId))
+  }, [])
+
   const handleEnemyCarBounce = useCallback((obstacleId: string, newVelocity: number, bounceDistance: number) => {
     setObstacles(prev => prev.map(obstacle => {
       if (obstacle.id === obstacleId && obstacle.type === 'car') {
@@ -177,6 +246,7 @@ function Scene({ onHUDUpdate }: SceneProps) {
         onRewardCollected={handleRewardCollected}
         onShoot={handleShoot}
         onSpreadShoot={handleSpreadShoot}
+        onMissileShoot={handleMissileShoot}
         score={score}
         onScoreUpdate={setScore}
         onEnemyCarBounce={handleEnemyCarBounce}
@@ -202,6 +272,29 @@ function Scene({ onHUDUpdate }: SceneProps) {
           obstacles={obstacles}
           onHit={handleProjectileHit}
           onExpire={handleProjectileExpire}
+        />
+      ))}
+      
+      {/* Render area missiles */}
+      {missiles.map(missile => (
+        <AreaMissile
+          key={missile.id}
+          position={missile.position}
+          angle={missile.angle}
+          carVelocity={missile.carVelocity}
+          missileId={missile.id}
+          obstacles={obstacles}
+          onHit={handleMissileHit}
+          onExpire={handleMissileExpire}
+        />
+      ))}
+      
+      {/* Render missile explosions */}
+      {missileExplosions.map(explosion => (
+        <MissileExplosion
+          key={explosion.id}
+          position={explosion.position}
+          onComplete={() => handleMissileExplosionComplete(explosion.id)}
         />
       ))}
     </>

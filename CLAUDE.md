@@ -18,9 +18,15 @@ This is a 3D synthwave-style racing game called "Synthwave Racer" built with Rea
 - **Entry Point**: `src/main.tsx` → `src/App.tsx` 
 - **3D Scene**: Managed by React Three Fiber Canvas in App.tsx
 - **Game Components**: Located in `src/components/`
-  - `Scene.tsx` - Main 3D scene with lighting setup
-  - `Car.tsx` - Player vehicle with physics and controls  
-  - `Road.tsx` - Animated grid road with synthwave styling
+  - `Scene.tsx` - Main 3D scene with lighting setup and weapon systems
+  - `Car.tsx` - Player vehicle with physics, controls, and weapon firing
+  - `SmoothRoad.tsx` - Animated grid road with synthwave styling
+  - `ObstacleManager.tsx` - Spawns and manages road obstacles and pickups
+  - **Weapons System**:
+    - `PlasmaProjectile.tsx` - Standard projectiles with collision detection
+    - `AreaMissile.tsx` - Area-of-effect missiles with physics simulation
+    - `MissileExplosion.tsx` - Large explosion effects for missile impacts
+    - `ExplosionEffect.tsx` - Standard explosion effects for projectile hits
 - **Hooks**: `src/hooks/useKeyboard.ts` - Keyboard input handling (currently unused)
 
 ### Key Technologies
@@ -32,6 +38,8 @@ This is a 3D synthwave-style racing game called "Synthwave Racer" built with Rea
 ### Game Controls
 The car is controlled via keyboard in `Car.tsx`:
 - Arrow keys or WASD for movement
+- **Space** - Fire plasma projectiles (normal and spread shot modes)
+- **M key** - Fire area-of-effect missiles (limited to 5 per rocket launcher pickup)
 - Physics simulation with velocity, friction, and boundaries
 - Car movement is bounded to road width (-8 to 8 on X-axis)
 
@@ -97,6 +105,27 @@ The car is controlled via keyboard in `Car.tsx`:
 - ❌ `<div>` inside `<Canvas>` → Move HTML outside Canvas
 - ❌ `new Vector3()` in `useFrame` → Create outside loop
 - ❌ Object cloning in render loop → Use refs for persistence
+
+## Weapon Systems
+
+### Pickup Types
+- **Yellow Rewards** (`type: 'reward'`) - 100 points, creates explosion effect
+- **Green Cones** (`type: 'cone'`) - Speed boost items, stacks up to 2.0x multiplier
+- **Blue Cars** (`type: 'car'`) - Moving obstacles with collision physics
+- **Rocket Launcher** (`type: 'rocket_launcher'`) - Rare pickup (3% spawn rate) gives 5 missiles
+
+### Missile System
+- **Firing**: M key fires area-of-effect missiles (2 second cooldown)
+- **Physics**: Missiles have gravity, travel in arcs, explode on ground contact
+- **Area Damage**: 8-unit explosion radius destroys all cars in range
+- **Scoring**: 25 points per car destroyed by missile (vs 10 for plasma projectiles)
+- **Visual**: Large explosion with shockwave, multiple particle effects
+- **Limitation**: Maximum 5 missiles per rocket launcher pickup, max 3 active simultaneously
+
+### Collision System (`src/utils/collision.ts`)
+- **Types**: Supports `'reward' | 'cone' | 'car' | 'rocket_launcher'`
+- **Detection**: AABB collision detection with type-specific bounding boxes
+- **Results**: Returns collision flags: `isBoost`, `isReward`, `isRocketLauncher`
 
 ## Memories
 

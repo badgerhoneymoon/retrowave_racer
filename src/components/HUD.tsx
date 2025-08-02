@@ -5,9 +5,10 @@ interface HUDProps {
   score: number
   spreadShotActive: boolean
   spreadShotTimeRemaining: number
+  missilesRemaining: number
 }
 
-function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, spreadShotTimeRemaining }: HUDProps) {
+function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, spreadShotTimeRemaining, missilesRemaining }: HUDProps) {
   const speedPercent = Math.round((Math.abs(speed) / 1.8) * 100) // Max possible speed is now ~1.8 (0.9 * 2.0)
   const boostSeconds = Math.max(0, Math.ceil(boostTimeRemaining / 1000))
   const spreadShotSeconds = Math.max(0, Math.ceil(spreadShotTimeRemaining / 1000))
@@ -64,6 +65,64 @@ function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, sp
             transition: 'all 0.2s ease'
           }} />
         </div>
+      </div>
+
+      {/* Missile Counter - Left Corner Below Speed */}
+      <div style={{
+        position: 'fixed',
+        top: '120px',
+        left: '20px',
+        zIndex: 1000,
+        fontFamily: 'monospace',
+        fontSize: '16px',
+        color: missilesRemaining > 0 ? '#ff4400' : '#666666',
+        textShadow: missilesRemaining > 0 ? '0 0 10px #ff4400' : 'none',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        border: `2px solid ${missilesRemaining > 0 ? '#ff4400' : '#666666'}`,
+        borderRadius: '8px',
+        padding: '15px',
+        boxShadow: missilesRemaining > 0 ? '0 0 20px rgba(255, 68, 0, 0.5)' : 'none',
+        minWidth: '180px'
+      }}>
+        <div style={{ 
+          color: '#ff6600', 
+          fontSize: '12px', 
+          marginBottom: '4px',
+          textTransform: 'uppercase',
+          letterSpacing: '1px'
+        }}>
+          MISSILES
+        </div>
+        <div style={{ 
+          fontSize: '24px', 
+          fontWeight: 'bold',
+          color: missilesRemaining > 0 ? '#ff4400' : '#666666',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          🚀 {missilesRemaining}
+          {missilesRemaining > 10 && (
+            <span style={{
+              fontSize: '12px',
+              color: '#ffff00',
+              textShadow: '0 0 10px #ffff00'
+            }}>
+              LOADED!
+            </span>
+          )}
+        </div>
+        {missilesRemaining === 0 && (
+          <div style={{
+            fontSize: '10px',
+            color: '#666666',
+            marginTop: '4px',
+            textTransform: 'uppercase',
+            letterSpacing: '1px'
+          }}>
+            Find Rocket Launcher
+          </div>
+        )}
       </div>
 
       {/* Boost Display - Center Top - Only show when boosted */}

@@ -42,14 +42,16 @@ export const generateObstaclesForRange = (
     
     // Randomly choose obstacle type with weighted probabilities
     const rand = Math.random()
-    let type: 'reward' | 'cone' | 'car'
+    let type: 'reward' | 'cone' | 'car' | 'rocket_launcher'
     
-    if (rand < 0.15) {
-      type = 'reward'  // 15% chance - more frequent reward pickups
-    } else if (rand < 0.35) {
-      type = 'cone'    // 20% chance - boost items  
+    if (rand < 0.12) {
+      type = 'reward'  // 12% chance - frequent reward pickups
+    } else if (rand < 0.27) {
+      type = 'cone'    // 15% chance - boost items  
+    } else if (rand < 0.30) {
+      type = 'rocket_launcher'  // 3% chance - rare rocket launcher pickups
     } else {
-      type = 'car'     // 65% chance - fewer obstacles to avoid
+      type = 'car'     // 70% chance - obstacles to avoid
     }
     
     // For cars, choose from car lanes; for rewards/cones, use all lanes including center
@@ -71,7 +73,7 @@ export const generateObstaclesForRange = (
         lane = 'right'
       }
     } else {
-      // Rewards and cones can spawn in any lane including center
+      // Rewards, cones, and rocket launchers can spawn in any lane including center
       const allPositions = [-12, -6, 0, 6, 12]
       const laneIndex = Math.floor(Math.random() * allPositions.length)
       x = allPositions[laneIndex]

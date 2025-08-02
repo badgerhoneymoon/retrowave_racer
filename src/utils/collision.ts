@@ -9,7 +9,7 @@ export interface ObstacleData {
   id: string
   x: number
   z: number
-  type: 'reward' | 'cone' | 'car'
+  type: 'reward' | 'cone' | 'car' | 'rocket_launcher'
   velocity?: number // Z-axis velocity for moving cars (positive = towards camera, negative = away)
   lane?: 'left' | 'right' // Lane assignment for cars
   originalVelocity?: number // Original velocity before bounce for recovery
@@ -21,6 +21,7 @@ export interface CollisionResult {
   obstacle?: ObstacleData
   isBoost?: boolean
   isReward?: boolean
+  isRocketLauncher?: boolean
   enemyCarBounce?: {
     newVelocity: number
     bounceDistance: number
@@ -51,6 +52,13 @@ export const getObstacleBounds = (obstacle: ObstacleData): BoundingBox => {
         z: obstacle.z - 0.5,
         width: 1,
         depth: 1
+      }
+    case 'rocket_launcher':
+      return {
+        x: obstacle.x - 0.8,
+        z: obstacle.z - 0.8,
+        width: 1.6,
+        depth: 1.6
       }
     case 'car':
       return {
@@ -103,11 +111,12 @@ export const checkCollisions = (
     if (checkAABBCollision(carBounds, obstacleBounds)) {
       const isBoost = obstacle.type === 'cone' // Cones are boost items
       const isReward = obstacle.type === 'reward' // Rewards are point pickups
+      const isRocketLauncher = obstacle.type === 'rocket_launcher' // Rocket launcher pickups
       
       // Calculate enemy car bounce if it's a car collision
       let enemyCarBounce: { newVelocity: number; bounceDistance: number } | undefined
       
-      if (obstacle.type === 'car' && !isBoost && !isReward) {
+      if (obstacle.type === 'car' && !isBoost && !isReward && !isRocketLauncher) {
         const enemyVelocity = obstacle.velocity || 0
         
         // Convert player speed (forward +Z speed is positive) to world Z velocity (negative Z means forward in the scene)
@@ -146,7 +155,7 @@ export const checkCollisions = (
         }
       }
       
-      return { hit: true, obstacle, isBoost, isReward, enemyCarBounce }
+      return { hit: true, obstacle, isBoost, isReward, isRocketLauncher, enemyCarBounce }
     }
   }
   
