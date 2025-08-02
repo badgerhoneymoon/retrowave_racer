@@ -83,11 +83,15 @@ function ExplosionEffect({ position, onComplete }: ExplosionEffectProps) {
       p.velocity.multiplyScalar(0.98)
       p.velocity.y -= 15 * delta
 
-      // Scale & fade
+      // Scale & fade (optimized: only update materials every few frames)
       const opacity = p.life / p.maxLife
       meshesRef.current[idx].scale.setScalar(p.scale * (1 + (1 - opacity) * 2))
-      ;(meshesRef.current[idx].material as MeshStandardMaterial).opacity = opacity
-      ;(meshesRef.current[idx].material as MeshStandardMaterial).emissiveIntensity = 0.8 * opacity
+      
+      // Reduce frequency of expensive material property updates
+      if (elapsedRef.current % 0.05 < delta) { // Update ~20fps instead of 60fps
+        ;(meshesRef.current[idx].material as MeshStandardMaterial).opacity = opacity
+        ;(meshesRef.current[idx].material as MeshStandardMaterial).emissiveIntensity = 0.8 * opacity
+      }
     })
 
     // Auto-complete after 0.6s (slightly longer than particle life)

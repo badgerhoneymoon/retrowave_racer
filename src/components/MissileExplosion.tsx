@@ -12,6 +12,7 @@ function MissileExplosion({ position, onComplete }: MissileExplosionProps) {
   const timeRef = useRef(0)
   const particlesRef = useRef<Group[]>([])
   const shockwaveRef = useRef<Group>(null)
+  const frameCountRef = useRef(0)
   
   useEffect(() => {
     // Create particle references
@@ -20,6 +21,7 @@ function MissileExplosion({ position, onComplete }: MissileExplosionProps) {
 
   useFrame((_, delta) => {
     timeRef.current += delta
+    frameCountRef.current += 1
     const progress = timeRef.current / 2.0 // 2 second explosion duration
     
     if (progress >= 1.0) {
@@ -46,7 +48,7 @@ function MissileExplosion({ position, onComplete }: MissileExplosionProps) {
       }
     }
 
-    // Animate particles
+    // Animate particles (optimized: batch material updates)
     particlesRef.current.forEach((particle, index) => {
       if (!particle) return
       
@@ -63,10 +65,12 @@ function MissileExplosion({ position, onComplete }: MissileExplosionProps) {
         Math.sin(angle) * distance
       )
       
-      // Fade out particles
-      const particleMaterial = (particle.children[0] as any)?.material
-      if (particleMaterial) {
-        particleMaterial.opacity = 1 - particleProgress
+      // Optimize: Only update material opacity every few frames to reduce cost
+      if (frameCountRef.current % 3 === 0) {
+        const particleMaterial = (particle.children[0] as any)?.material
+        if (particleMaterial) {
+          particleMaterial.opacity = 1 - particleProgress
+        }
       }
     })
   })
