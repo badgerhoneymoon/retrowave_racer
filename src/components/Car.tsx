@@ -11,7 +11,6 @@ interface CarProps {
   onDistanceChange?: (distance: number) => void
   obstacles?: ObstacleData[]
   onObstacleCollected?: (obstacleId: string) => void
-  onHUDUpdate?: (hudData: { speed: number, isBoosted: boolean, boostTimeRemaining: number, score: number, spreadShotActive: boolean, spreadShotTimeRemaining: number, missilesRemaining: number }) => void
   onRewardCollected?: (points: number, position: [number, number, number]) => void
   onShoot?: (startPosition: [number, number, number], angle: number, carVelocity: number) => void
   onSpreadShoot?: (shots: Array<{ position: [number, number, number], angle: number, carVelocity: number }>) => void
@@ -21,7 +20,7 @@ interface CarProps {
   onEnemyCarBounce?: (obstacleId: string, newVelocity: number, bounceDistance: number) => void
 }
 
-function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacleCollected, onHUDUpdate, onRewardCollected, onShoot, onSpreadShoot, onMissileShoot, score = 0, onScoreUpdate, onEnemyCarBounce }: CarProps) {
+function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacleCollected, onRewardCollected, onShoot, onSpreadShoot, onMissileShoot, score = 0, onScoreUpdate, onEnemyCarBounce }: CarProps) {
   const carRef = useRef<Group>(null)
   // Convert to refs to avoid React re-renders every frame
   const carPositionRef = useRef({ x: 0, z: 0 })
@@ -427,20 +426,68 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
       }
     }
 
-    // Report HUD data to parent component (throttled to every 6 frames = ~10 FPS)
-    frameCountRef.current += 1 // Proper frame counting
-    if (onHUDUpdate && frameCountRef.current % 6 === 0) {
+    // Direct DOM updates for better performance (bypass React state)
+    frameCountRef.current += 1 
+    if (frameCountRef.current % 6 === 0) {
       const boostTimeRemaining = isBoosted ? Math.max(0, boostEndTime - currentTime) : 0
       const spreadShotTimeRemaining = spreadShotActive ? Math.max(0, spreadShotEndTime - currentTime) : 0
-      onHUDUpdate({ 
-        speed: speedRef.current, 
-        isBoosted, 
-        boostTimeRemaining, 
-        score, 
-        spreadShotActive, 
-        spreadShotTimeRemaining,
-        missilesRemaining
-      })
+      
+      // Update speed display directly
+      const speedPercent = Math.round((Math.abs(speedRef.current) / 1.8) * 100)
+      const speedElement = document.querySelector('[data-hud="speed-value"]') as HTMLElement
+      const speedBarElement = document.querySelector('[data-hud="speed-bar"]') as HTMLElement
+      if (speedElement) {
+        speedElement.textContent = `${speedPercent}%`
+        speedElement.style.color = isBoosted ? '#00ff00' : '#00ffff'
+      }
+      if (speedBarElement) {
+        speedBarElement.style.width = `${Math.min(100, speedPercent)}%`
+        speedBarElement.style.backgroundColor = isBoosted ? '#00ff00' : '#00ffff'
+        speedBarElement.style.boxShadow = isBoosted ? '0 0 10px #00ff00' : '0 0 10px #00ffff'
+      }
+      
+      // Update score display directly
+      const scoreElement = document.querySelector('[data-hud="score-value"]') as HTMLElement
+      if (scoreElement) {
+        scoreElement.textContent = score.toLocaleString()
+      }
+      
+      // Update missiles display directly
+      const missilesElement = document.querySelector('[data-hud="missiles-value"]') as HTMLElement
+      if (missilesElement) {
+        missilesElement.textContent = `🚀 ${missilesRemaining}`
+        missilesElement.style.color = missilesRemaining > 0 ? '#ff4400' : '#666666'
+      }
+      
+      // Update boost display directly
+      const boostContainer = document.querySelector('[data-hud="boost-container"]') as HTMLElement
+      const boostValueElement = document.querySelector('[data-hud="boost-value"]') as HTMLElement
+      const boostBarElement = document.querySelector('[data-hud="boost-bar"]') as HTMLElement
+      if (boostContainer) {
+        boostContainer.style.display = isBoosted ? 'block' : 'none'
+      }
+      if (boostValueElement && isBoosted) {
+        const boostSeconds = Math.max(0, Math.ceil(boostTimeRemaining / 1000))
+        boostValueElement.textContent = `${boostSeconds}s`
+      }
+      if (boostBarElement && isBoosted) {
+        boostBarElement.style.width = `${(boostTimeRemaining / 5000) * 100}%`
+      }
+      
+      // Update spread shot display directly
+      const spreadContainer = document.querySelector('[data-hud="spread-container"]') as HTMLElement
+      const spreadValueElement = document.querySelector('[data-hud="spread-value"]') as HTMLElement
+      const spreadBarElement = document.querySelector('[data-hud="spread-bar"]') as HTMLElement
+      if (spreadContainer) {
+        spreadContainer.style.display = spreadShotActive ? 'block' : 'none'
+      }
+      if (spreadValueElement && spreadShotActive) {
+        const spreadSeconds = Math.max(0, Math.ceil(spreadShotTimeRemaining / 1000))
+        spreadValueElement.textContent = `${spreadSeconds}s`
+      }
+      if (spreadBarElement && spreadShotActive) {
+        spreadBarElement.style.width = `${(spreadShotTimeRemaining / 5000) * 100}%`
+      }
     }
 
     // Report total distance to parent component

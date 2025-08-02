@@ -1,17 +1,5 @@
-interface HUDProps {
-  speed: number
-  isBoosted: boolean
-  boostTimeRemaining: number
-  score: number
-  spreadShotActive: boolean
-  spreadShotTimeRemaining: number
-  missilesRemaining: number
-}
-
-function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, spreadShotTimeRemaining, missilesRemaining }: HUDProps) {
-  const speedPercent = Math.round((Math.abs(speed) / 1.8) * 100) // Max possible speed is now ~1.8 (0.9 * 2.0)
-  const boostSeconds = Math.max(0, Math.ceil(boostTimeRemaining / 1000))
-  const spreadShotSeconds = Math.max(0, Math.ceil(spreadShotTimeRemaining / 1000))
+// HUD now uses direct DOM updates for performance - initial values only
+function HUD() {
 
   return (
     <>
@@ -41,12 +29,12 @@ function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, sp
         }}>
           SPEED
         </div>
-        <div style={{ 
+        <div data-hud="speed-value" style={{ 
           fontSize: '24px', 
           fontWeight: 'bold',
-          color: isBoosted ? '#00ff00' : '#00ffff'
+          color: '#00ffff'
         }}>
-          {speedPercent}%
+          0%
         </div>
         {/* Speed Bar */}
         <div style={{
@@ -57,11 +45,11 @@ function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, sp
           marginTop: '4px',
           position: 'relative'
         }}>
-          <div style={{
-            width: `${Math.min(100, speedPercent)}%`,
+          <div data-hud="speed-bar" style={{
+            width: '0%',
             height: '100%',
-            backgroundColor: isBoosted ? '#00ff00' : '#00ffff',
-            boxShadow: isBoosted ? '0 0 10px #00ff00' : '0 0 10px #00ffff',
+            backgroundColor: '#00ffff',
+            boxShadow: '0 0 10px #00ffff',
             transition: 'all 0.2s ease'
           }} />
         </div>
@@ -75,13 +63,13 @@ function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, sp
         zIndex: 1000,
         fontFamily: 'monospace',
         fontSize: '16px',
-        color: missilesRemaining > 0 ? '#ff4400' : '#666666',
-        textShadow: missilesRemaining > 0 ? '0 0 10px #ff4400' : 'none',
+        color: '#666666',
+        textShadow: 'none',
         backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        border: `2px solid ${missilesRemaining > 0 ? '#ff4400' : '#666666'}`,
+        border: '2px solid #666666',
         borderRadius: '8px',
         padding: '15px',
-        boxShadow: missilesRemaining > 0 ? '0 0 20px rgba(255, 68, 0, 0.5)' : 'none',
+        boxShadow: 'none',
         minWidth: '180px'
       }}>
         <div style={{ 
@@ -93,58 +81,47 @@ function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, sp
         }}>
           MISSILES
         </div>
-        <div style={{ 
+        <div data-hud="missiles-value" style={{ 
           fontSize: '24px', 
           fontWeight: 'bold',
-          color: missilesRemaining > 0 ? '#ff4400' : '#666666',
+          color: '#666666',
           display: 'flex',
           alignItems: 'center',
           gap: '8px'
         }}>
-          🚀 {missilesRemaining}
-          {missilesRemaining > 10 && (
-            <span style={{
-              fontSize: '12px',
-              color: '#ffff00',
-              textShadow: '0 0 10px #ffff00'
-            }}>
-              LOADED!
-            </span>
-          )}
+          🚀 0
         </div>
-        {missilesRemaining === 0 && (
-          <div style={{
-            fontSize: '10px',
-            color: '#666666',
-            marginTop: '4px',
-            textTransform: 'uppercase',
-            letterSpacing: '1px'
-          }}>
-            Find Rocket Launcher
-          </div>
-        )}
+        <div style={{
+          fontSize: '10px',
+          color: '#666666',
+          marginTop: '4px',
+          textTransform: 'uppercase',
+          letterSpacing: '1px'
+        }}>
+          Find Rocket Launcher
+        </div>
       </div>
 
       {/* Boost Display - Center Top - Only show when boosted */}
-      {isBoosted && (
-        <div style={{
-          position: 'fixed',
-          top: '30px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 1000,
-          fontFamily: 'monospace',
-          fontSize: '18px',
-          textAlign: 'center',
-          color: '#00ff00',
-          textShadow: '0 0 15px #00ff00',
-          backgroundColor: 'rgba(0, 0, 0, 0.9)',
-          border: '2px solid #00ff00',
-          borderRadius: '12px',
-          padding: '12px 20px',
-          boxShadow: '0 0 25px rgba(0, 255, 0, 0.6)',
-          minWidth: '140px'
-        }}>
+      <div data-hud="boost-container" style={{
+          display: 'none',
+        position: 'fixed',
+        top: '30px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 1000,
+        fontFamily: 'monospace',
+        fontSize: '18px',
+        textAlign: 'center',
+        color: '#00ff00',
+        textShadow: '0 0 15px #00ff00',
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        border: '2px solid #00ff00',
+        borderRadius: '12px',
+        padding: '12px 20px',
+        boxShadow: '0 0 25px rgba(0, 255, 0, 0.6)',
+        minWidth: '140px'
+      }}>
           <div style={{ 
             color: '#ff6600', 
             fontSize: '11px', 
@@ -156,14 +133,14 @@ function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, sp
             BOOST
           </div>
           
-          <div style={{ 
+          <div data-hud="boost-value" style={{ 
             fontSize: '22px',
             fontWeight: 'bold',
             color: '#00ff00',
             marginBottom: '6px',
             textShadow: '0 0 20px #00ff00'
           }}>
-            {boostSeconds}s
+            0s
           </div>
           
           {/* Boost Bar */}
@@ -176,8 +153,8 @@ function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, sp
             position: 'relative',
             overflow: 'hidden'
           }}>
-            <div style={{
-              width: `${(boostTimeRemaining / 5000) * 100}%`,
+            <div data-hud="boost-bar" style={{
+              width: '0%',
               height: '100%',
               backgroundColor: '#00ff00',
               boxShadow: '0 0 15px #00ff00',
@@ -200,27 +177,26 @@ function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, sp
             ⚡ ACTIVE ⚡
           </div>
         </div>
-      )}
 
       {/* Spread Shot Display - Center Top Right - Only show when active */}
-      {spreadShotActive && (
-        <div style={{
-          position: 'fixed',
-          top: '30px',
-          right: '30%',
-          zIndex: 1000,
-          fontFamily: 'monospace',
-          fontSize: '18px',
-          textAlign: 'center',
-          color: '#ffff00',
-          textShadow: '0 0 15px #ffff00',
-          backgroundColor: 'rgba(0, 0, 0, 0.9)',
-          border: '2px solid #ffff00',
-          borderRadius: '12px',
-          padding: '12px 20px',
-          boxShadow: '0 0 25px rgba(255, 255, 0, 0.6)',
-          minWidth: '140px'
-        }}>
+      <div data-hud="spread-container" style={{
+          display: 'none',
+        position: 'fixed',
+        top: '30px',
+        right: '30%',
+        zIndex: 1000,
+        fontFamily: 'monospace',
+        fontSize: '18px',
+        textAlign: 'center',
+        color: '#ffff00',
+        textShadow: '0 0 15px #ffff00',
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        border: '2px solid #ffff00',
+        borderRadius: '12px',
+        padding: '12px 20px',
+        boxShadow: '0 0 25px rgba(255, 255, 0, 0.6)',
+        minWidth: '140px'
+      }}>
           <div style={{ 
             color: '#ff6600', 
             fontSize: '11px', 
@@ -232,14 +208,14 @@ function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, sp
             SPREAD SHOT
           </div>
           
-          <div style={{ 
+          <div data-hud="spread-value" style={{ 
             fontSize: '22px',
             fontWeight: 'bold',
             color: '#ffff00',
             marginBottom: '6px',
             textShadow: '0 0 20px #ffff00'
           }}>
-            {spreadShotSeconds}s
+            0s
           </div>
           
           {/* Spread Shot Bar */}
@@ -252,8 +228,8 @@ function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, sp
             position: 'relative',
             overflow: 'hidden'
           }}>
-            <div style={{
-              width: `${(spreadShotTimeRemaining / 5000) * 100}%`,
+            <div data-hud="spread-bar" style={{
+              width: '0%',
               height: '100%',
               backgroundColor: '#ffff00',
               boxShadow: '0 0 15px #ffff00',
@@ -276,7 +252,6 @@ function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, sp
             ✦ 8-SHOT ✦
           </div>
         </div>
-      )}
 
       {/* Score Display - Right Corner */}
       <div style={{
@@ -305,12 +280,12 @@ function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, sp
         }}>
           SCORE
         </div>
-        <div style={{ 
+        <div data-hud="score-value" style={{ 
           fontSize: '24px', 
           fontWeight: 'bold',
           color: '#ffff00'
         }}>
-          {score.toLocaleString()}
+          0
         </div>
       </div>
 

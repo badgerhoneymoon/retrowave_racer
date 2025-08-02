@@ -34,11 +34,7 @@ interface MissileExplosion {
   position: [number, number, number]
 }
 
-interface SceneProps {
-  onHUDUpdate: (hudData: { speed: number, isBoosted: boolean, boostTimeRemaining: number, score: number, spreadShotActive: boolean, spreadShotTimeRemaining: number, missilesRemaining: number }) => void
-}
-
-function Scene({ onHUDUpdate }: SceneProps) {
+function Scene() {
   const [carPosition, setCarPosition] = useState({ x: 0, z: 0 })
   const [obstacles, setObstacles] = useState<ObstacleData[]>([])
   const [explosions, setExplosions] = useState<Explosion[]>([])
@@ -250,7 +246,6 @@ function Scene({ onHUDUpdate }: SceneProps) {
         onPositionChange={setCarPosition}
         obstacles={obstacles}
         onObstacleCollected={handleObstacleCollected}
-        onHUDUpdate={onHUDUpdate}
         onRewardCollected={handleRewardCollected}
         onShoot={handleShoot}
         onSpreadShoot={handleSpreadShoot}
