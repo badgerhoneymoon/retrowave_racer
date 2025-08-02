@@ -46,8 +46,10 @@ function SmoothRoad({ carZ = 0 }: SmoothRoadProps) {
       vec2 worldPos = vWorldPosition.xz;
       
       // Offset the grid based on car position for infinite scrolling
-      // Use modulo to create repeating pattern
       worldPos.y = worldPos.y - uCarZ;
+      
+      // Calculate distance from camera for fading
+      float distanceFromCamera = length(vWorldPosition.xyz - cameraPosition);
       
       // Grid spacing (match original 2-unit spacing)
       float gridSize = 2.0;
@@ -57,6 +59,14 @@ function SmoothRoad({ carZ = 0 }: SmoothRoadProps) {
       // Create pink grid lines with proper thickness
       float pinkLine = 1.0 - min(gridLine, 1.0);
       pinkLine = smoothstep(0.0, 0.1, pinkLine);
+      
+      // Distance-based fading to prevent aliasing
+      float fadeDist = 50.0; // Start fading at 50 units
+      float maxDist = 100.0;  // Completely faded at 100 units
+      float distanceFade = 1.0 - smoothstep(fadeDist, maxDist, distanceFromCamera);
+      
+      // Apply distance fade to line intensity
+      pinkLine *= distanceFade;
       
       // Road surface color (match original)
       vec3 roadColor = vec3(0.067, 0.067, 0.067); // Dark gray #111111

@@ -3,7 +3,7 @@ import Car from './Car'
 import SmoothRoad from './SmoothRoad'
 import ObstacleManager from './ObstacleManager'
 import ExplosionEffect from './ExplosionEffect'
-// import RetrowaveSun from './RetrowaveSun'
+import RetrowaveSun from './RetrowaveSun'
 import PlasmaProjectile from './PlasmaProjectile'
 import { ObstacleData } from '../utils/collision'
 
@@ -143,7 +143,7 @@ function Scene({ onHUDUpdate }: SceneProps) {
         color="#ff00ff"
       />
       
-      {/* <RetrowaveSun /> */}
+      <RetrowaveSun carZ={carPosition.z} />
       <SmoothRoad carZ={carPosition.z} />
       <ObstacleManager 
         carPosition={carPosition} 

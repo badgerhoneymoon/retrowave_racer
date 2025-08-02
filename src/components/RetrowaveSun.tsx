@@ -1,6 +1,6 @@
 import { useMemo, useRef } from 'react'
 import { CanvasTexture, Group, NearestFilter } from 'three'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame } from '@react-three/fiber'
 
 function createSunTexture() {
   const size = 512
@@ -40,19 +40,29 @@ function createSunTexture() {
   return texture
 }
 
-function RetrowaveSun() {
+interface RetrowaveSunProps {
+  carZ?: number
+}
+
+function RetrowaveSun({ carZ = 0 }: RetrowaveSunProps) {
   const sunRef = useRef<Group>(null)
   const texture = useMemo(createSunTexture, [])
-  const { camera } = useThree()
 
-  // Keep the sun a fixed distance ahead of the camera so it stays on the horizon
-  // Run after other frame updates (-1 priority) and gently interpolate for ultra-smooth motion
+  // Keep the sun a fixed distance ahead of the car (like the road) for smooth movement
   useFrame(() => {
     if (!sunRef.current) return
-    const targetZ = camera.position.z - 120
-    // Lerp towards target to eliminate any tiny judder from fractional pixel movement
-    sunRef.current.position.set(0, 10, sunRef.current.position.z + (targetZ - sunRef.current.position.z) * 0.2)
-  }, -1)
+    
+    // Position sun far ahead on the horizon, following car smoothly
+    const targetZ = carZ - 120  // Always 120 units ahead of car
+    const targetX = 0  // Always centered
+    const targetY = 8  // Lower on horizon
+    
+    // Gentle interpolation to prevent any jerkiness (same as camera)
+    const sunLerpFactor = 0.1
+    sunRef.current.position.x += (targetX - sunRef.current.position.x) * sunLerpFactor
+    sunRef.current.position.y += (targetY - sunRef.current.position.y) * sunLerpFactor
+    sunRef.current.position.z += (targetZ - sunRef.current.position.z) * sunLerpFactor
+  })
 
   return (
     <group ref={sunRef}>
