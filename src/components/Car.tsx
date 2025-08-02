@@ -180,7 +180,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     
     // Handle missile shooting
     if (keys.missile && onMissileShoot && missilesRemaining > 0) {
-      const missileCooldown = 500 // Reduced to 0.5 seconds between missiles
+      const missileCooldown = 800 // Increased to 0.8 seconds to reduce React re-render frequency
       if (currentTime - lastMissileTime > missileCooldown) {
         const shootOffsetDistance = 3
         const shootX = carPositionRef.current.x - Math.sin(carRotationRef.current) * shootOffsetDistance

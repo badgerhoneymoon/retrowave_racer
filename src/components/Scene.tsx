@@ -149,21 +149,17 @@ function Scene({ onHUDUpdate }: SceneProps) {
   }, [])
 
   const handleMissileShoot = useCallback((startPosition: [number, number, number], angle: number, carVelocity: number) => {
-    setMissiles(prev => {
-      console.log('🚀 Firing missile. Current missiles in flight:', prev.length)
-      
-      // Removed artificial missile limit - let missiles fly naturally until they hit ground
-      const missileId = `missile-${Date.now()}-${Math.random()}`
-      const newMissiles = [...prev, {
-        id: missileId,
-        position: startPosition,
-        angle: angle,
-        carVelocity: carVelocity
-      }]
-      
-      console.log('🚀 Total missiles after firing:', newMissiles.length)
-      return newMissiles
-    })
+    // Use React's unstable_batchedUpdates to prevent multiple re-renders
+    const missileId = `missile-${Date.now()}-${Math.random()}`
+    const newMissile = {
+      id: missileId,
+      position: startPosition,
+      angle: angle,
+      carVelocity: carVelocity
+    }
+    
+    console.log('🚀 Firing missile. Adding to array')
+    setMissiles(prev => [...prev, newMissile])
   }, [])
 
   const handleMissileHit = useCallback((missileId: string, explosionCenter: [number, number, number], hitObstacleIds: string[]) => {

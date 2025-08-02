@@ -244,21 +244,7 @@ function AreaMissile({
         />
       </mesh>
       
-      {/* Particle trail effect */}
-      <pointLight 
-        position={[0, -0.5, 0]} 
-        intensity={3} 
-        distance={8} 
-        color="#00ffff" 
-      />
-      
-      {/* Landing indicator light (projected ahead) */}
-      <pointLight 
-        position={[0, -2, 0]} 
-        intensity={2} 
-        distance={15} 
-        color="#ff0000" 
-      />
+
     </group>
   )
 }
