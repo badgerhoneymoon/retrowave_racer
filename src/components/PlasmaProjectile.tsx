@@ -1,4 +1,4 @@
-import { useRef, memo } from 'react'
+import { useRef, memo, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Mesh } from 'three'
 import { geometryCache } from '../utils/geometryCache'
@@ -18,6 +18,12 @@ function PlasmaProjectile({ position, angle, carVelocity, onHit, onExpire, proje
   const baseSpeed = 80 // Base projectile speed
   const maxDistance = 200 // Max range before projectile expires
 
+  // Pre-compute trigonometry for performance (angle doesn't change per projectile)
+  const { sinAngle, cosAngle } = useMemo(() => ({
+    sinAngle: Math.sin(angle),
+    cosAngle: Math.cos(angle)
+  }), [angle])
+
   useFrame((_state, delta) => {
     if (!projectileRef.current) return
 
@@ -27,8 +33,8 @@ function PlasmaProjectile({ position, angle, carVelocity, onHit, onExpire, proje
     const effectiveSpeed = baseSpeed + carVelocityInWorldUnits
 
     // Move projectile in the direction of the car's rotation
-    const deltaX = -Math.sin(angle) * effectiveSpeed * delta
-    const deltaZ = -Math.cos(angle) * effectiveSpeed * delta
+    const deltaX = -sinAngle * effectiveSpeed * delta
+    const deltaZ = -cosAngle * effectiveSpeed * delta
     
     projectileRef.current.position.x += deltaX
     projectileRef.current.position.z += deltaZ
