@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { ShaderMaterial } from 'three'
 import * as THREE from 'three'
@@ -99,4 +99,4 @@ function SmoothRoad({ carZ = 0 }: SmoothRoadProps) {
   )
 }
 
-export default SmoothRoad
+export default memo(SmoothRoad)

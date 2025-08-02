@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group, Mesh, MeshStandardMaterial, SphereGeometry, Vector3 } from 'three'
 
@@ -103,4 +103,4 @@ function ExplosionEffect({ position, onComplete }: ExplosionEffectProps) {
   return <group ref={groupRef} />
 }
 
-export default ExplosionEffect
+export default memo(ExplosionEffect)

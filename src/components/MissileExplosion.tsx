@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { useRef, useEffect, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group } from 'three'
 
@@ -143,4 +143,4 @@ function MissileExplosion({ position, onComplete }: MissileExplosionProps) {
   )
 }
 
-export default MissileExplosion
+export default memo(MissileExplosion)

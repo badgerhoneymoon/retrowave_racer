@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import Obstacle from './Obstacle'
 import { ObstacleData } from '../utils/collision'
@@ -59,4 +59,4 @@ function ObstacleManager({ carPosition, obstacles, onObstaclesUpdate }: Obstacle
   )
 }
 
-export default ObstacleManager
+export default memo(ObstacleManager)

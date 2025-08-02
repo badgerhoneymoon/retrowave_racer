@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react'
+import { useRef, useEffect, useState, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group, Vector3 } from 'three'
 
@@ -238,4 +238,4 @@ function AreaMissile({
   )
 }
 
-export default AreaMissile
+export default memo(AreaMissile)
