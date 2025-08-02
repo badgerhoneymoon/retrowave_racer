@@ -33,7 +33,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
   const [boostEndTime, setBoostEndTime] = useState(0)
   // Track last position sent to parent to avoid spamming state updates
   const lastSentPositionRef = useRef({ x: 0, z: 0 })
-  const [boostTransitionSpeed, setBoostTransitionSpeed] = useState(1.0) // Multiplier for smooth transition
+  const boostTransitionSpeedRef = useRef(1.0) // Multiplier for smooth transition
   const [targetBoostSpeed, setTargetBoostSpeed] = useState(1.0) // Target boost multiplier
   const [lastShotTime, setLastShotTime] = useState(0)
   const [lastSpreadShotTime, setLastSpreadShotTime] = useState(0)
@@ -202,20 +202,18 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     }
     
     // Smooth boost transition - gradually transition to target speed
-    setBoostTransitionSpeed(prev => {
-      if (isBoosted) {
-        // When boosted, quickly ramp up to target boost speed
-        return Math.min(targetBoostSpeed, prev + (5.0 * delta)) // Fast ramp up
-      } else {
-        // When not boosted, gradually return to 1.0x speed
-        return Math.max(1.0, prev - (2.0 * delta)) // Slower ramp down for smooth transition
-      }
-    })
+    if (isBoosted) {
+      // When boosted, quickly ramp up to target boost speed
+      boostTransitionSpeedRef.current = Math.min(targetBoostSpeed, boostTransitionSpeedRef.current + (5.0 * delta)) // Fast ramp up
+    } else {
+      // When not boosted, gradually return to 1.0x speed
+      boostTransitionSpeedRef.current = Math.max(1.0, boostTransitionSpeedRef.current - (2.0 * delta)) // Slower ramp down for smooth transition
+    }
 
     // Car physics constants (modified by smooth boost transition)
     const baseMaxSpeed = 0.9 // Increased from 0.6 to make old boost speed the new default
-    const maxSpeed = baseMaxSpeed * boostTransitionSpeed // Smoothly transition between normal and boost speed
-    const acceleration = 1.8 * boostTransitionSpeed // Increased proportionally
+    const maxSpeed = baseMaxSpeed * boostTransitionSpeedRef.current // Smoothly transition between normal and boost speed
+    const acceleration = 1.8 * boostTransitionSpeedRef.current // Increased proportionally
     const deceleration = 0.8
     const brakeDeceleration = 2.0
     const maxSteerAngle = 0.8
