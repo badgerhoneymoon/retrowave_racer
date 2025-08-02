@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, memo } from 'react'
+import { Perf } from 'r3f-perf'
 import Car from './Car'
 import SmoothRoad from './SmoothRoad'
 import ObstacleManager from './ObstacleManager'
@@ -214,6 +215,17 @@ function Scene({ onHUDUpdate }: SceneProps) {
 
   return (
     <>
+      <Perf 
+        position="top-left" 
+        style={{ 
+          position: 'absolute', 
+          top: '250px', 
+          left: '10px',
+          zIndex: 50 
+        }}
+        showGraph={true}
+        minimal={false}
+      />
       <ambientLight intensity={0.3} />
       <directionalLight 
         position={[10, 10, 5]} 
@@ -297,4 +309,4 @@ function Scene({ onHUDUpdate }: SceneProps) {
   )
 }
 
-export default Scene
+export default memo(Scene)

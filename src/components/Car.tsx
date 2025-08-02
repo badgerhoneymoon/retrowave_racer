@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group } from 'three'
 import { ObstacleData, checkCollisions, getObstaclesInRange } from '../utils/collision'
+import { geometryCache } from '../utils/geometryCache'
 
 interface CarProps {
   position?: [number, number, number]
@@ -120,6 +121,8 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
 
     const keys = keysRef.current
 
+    // Cache initial trigonometric calculations (will be updated after rotation)
+
     // Check if boost expired and handle smooth transition
     const currentTime = state.clock.elapsedTime * 1000
     
@@ -152,8 +155,10 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
           
           const shots = shotAngles.map(angle => {
             const shootOffsetDistance = 3
-            const shootX = carPositionRef.current.x - Math.sin(angle) * shootOffsetDistance
-            const shootZ = carPositionRef.current.z - Math.cos(angle) * shootOffsetDistance
+            const shootSin = Math.sin(angle)
+            const shootCos = Math.cos(angle)
+            const shootX = carPositionRef.current.x - shootSin * shootOffsetDistance
+            const shootZ = carPositionRef.current.z - shootCos * shootOffsetDistance
             return {
               position: [shootX, 1, shootZ] as [number, number, number],
               angle,
@@ -271,15 +276,13 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     const turnRate = steerAngleRef.current * speedFactor * 2.0
     carRotationRef.current += turnRate * delta
 
-    // Update total distance traveled (this drives the grid animation)
-    // setTotalDistance(prev => {
-    //   const distanceThisFrame = Math.abs(speed) * delta * 10  // Scale down the distance
-    //   return prev + distanceThisFrame
-    // })
+    // Cache trigonometric calculations after rotation update for performance
+    const sinAngle = Math.sin(carRotationRef.current)
+    const cosAngle = Math.cos(carRotationRef.current)
 
-    // Calculate new position (direct ref modification - no React re-render)
-    const newX = carPositionRef.current.x - Math.sin(carRotationRef.current) * speedRef.current * delta * 60  // Fixed: - for correct left/right movement
-    const newZ = carPositionRef.current.z - Math.cos(carRotationRef.current) * speedRef.current * delta * 60  // Fixed: - instead of +
+    // Calculate new position using cached trigonometric values (direct ref modification - no React re-render)
+    const newX = carPositionRef.current.x - sinAngle * speedRef.current * delta * 60  // Fixed: - for correct left/right movement
+    const newZ = carPositionRef.current.z - cosAngle * speedRef.current * delta * 60  // Fixed: - instead of +
       
     // Check for collisions at new position
     const nearbyObstacles = getObstaclesInRange(obstacles, newX, newZ, 10)
@@ -370,8 +373,8 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
         } else {
           // Significant speed - bounce back proportional to speed (more dramatic at high speeds)
           const bounceDistance = currentSpeed * 4.5 // Increased from 3.0 for more bounce
-          const bounceX = carPositionRef.current.x + Math.sin(carRotationRef.current) * bounceDistance
-          const bounceZ = carPositionRef.current.z + Math.cos(carRotationRef.current) * bounceDistance
+          const bounceX = carPositionRef.current.x + sinAngle * bounceDistance
+          const bounceZ = carPositionRef.current.z + cosAngle * bounceDistance
           
           // Apply bounce position (clamped to road bounds)
           carPositionRef.current = {
@@ -426,9 +429,9 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
       }
     }
 
-    // Report HUD data to parent component (throttled to every 3 frames)
+    // Report HUD data to parent component (throttled to every 6 frames = ~10 FPS)
     frameCountRef.current += 1 // Proper frame counting
-    if (onHUDUpdate && frameCountRef.current % 3 === 0) {
+    if (onHUDUpdate && frameCountRef.current % 6 === 0) {
       const boostTimeRemaining = isBoosted ? Math.max(0, boostEndTime - currentTime) : 0
       const spreadShotTimeRemaining = spreadShotActive ? Math.max(0, spreadShotEndTime - currentTime) : 0
       onHUDUpdate({ 
@@ -465,35 +468,28 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
 
   return (
     <group ref={carRef} position={position}>
-      <mesh position={[0, 0.5, 0]}>
-        <boxGeometry args={[2, 0.8, 4]} />
+      <mesh position={[0, 0.5, 0]} geometry={geometryCache.getGeometry('car-body')}>
         <meshStandardMaterial color={getCarColor()} />
       </mesh>
       
-      <mesh position={[0, 0.2, 0]}>
-        <boxGeometry args={[1.8, 0.4, 3.5]} />
+      <mesh position={[0, 0.2, 0]} geometry={geometryCache.getGeometry('car-accent')}>
         <meshStandardMaterial color={getAccentColor()} />
       </mesh>
       
-      <mesh position={[-0.7, 0, 1.3]}>
-        <cylinderGeometry args={[0.3, 0.3, 0.2]} />
+      <mesh position={[-0.7, 0, 1.3]} geometry={geometryCache.getGeometry('car-wheel')}>
         <meshStandardMaterial color="#222" />
       </mesh>
-      <mesh position={[0.7, 0, 1.3]}>
-        <cylinderGeometry args={[0.3, 0.3, 0.2]} />
+      <mesh position={[0.7, 0, 1.3]} geometry={geometryCache.getGeometry('car-wheel')}>
         <meshStandardMaterial color="#222" />
       </mesh>
-      <mesh position={[-0.7, 0, -1.3]}>
-        <cylinderGeometry args={[0.3, 0.3, 0.2]} />
+      <mesh position={[-0.7, 0, -1.3]} geometry={geometryCache.getGeometry('car-wheel')}>
         <meshStandardMaterial color="#222" />
       </mesh>
-      <mesh position={[0.7, 0, -1.3]}>
-        <cylinderGeometry args={[0.3, 0.3, 0.2]} />
+      <mesh position={[0.7, 0, -1.3]} geometry={geometryCache.getGeometry('car-wheel')}>
         <meshStandardMaterial color="#222" />
       </mesh>
       
-      <mesh position={[0, 0.9, 0.5]}>
-        <boxGeometry args={[1.5, 0.6, 1.5]} />
+      <mesh position={[0, 0.9, 0.5]} geometry={geometryCache.getGeometry('car-windshield')}>
         <meshStandardMaterial color="#00ffff" transparent opacity={0.7} />
       </mesh>
     </group>

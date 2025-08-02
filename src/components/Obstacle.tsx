@@ -1,5 +1,6 @@
 
 import { memo } from 'react'
+import { geometryCache } from '../utils/geometryCache'
 
 interface ObstacleProps {
   position: [number, number, number]
@@ -13,8 +14,7 @@ function Obstacle({ position, type }: ObstacleProps) {
         return (
           <group position={position}>
             {/* Main crystal/gem shape */}
-            <mesh position={[0, 0.5, 0]} rotation={[0, Math.PI / 4, 0]}>
-              <boxGeometry args={[1, 1, 1]} />
+            <mesh position={[0, 0.5, 0]} rotation={[0, Math.PI / 4, 0]} geometry={geometryCache.getGeometry('reward-cube')}>
               <meshStandardMaterial 
                 color="#ffff00" 
                 emissive="#ffaa00" 
@@ -25,8 +25,7 @@ function Obstacle({ position, type }: ObstacleProps) {
               />
             </mesh>
             {/* Inner glow effect */}
-            <mesh position={[0, 0.5, 0]} rotation={[Math.PI / 4, Math.PI / 4, 0]}>
-              <boxGeometry args={[0.8, 0.8, 0.8]} />
+            <mesh position={[0, 0.5, 0]} rotation={[Math.PI / 4, Math.PI / 4, 0]} geometry={geometryCache.getGeometry('reward-inner')}>
               <meshStandardMaterial 
                 color="#ffffff" 
                 emissive="#ffff00" 
@@ -40,20 +39,17 @@ function Obstacle({ position, type }: ObstacleProps) {
         )
       case 'cone':
         return (
-          <mesh position={position}>
-            <coneGeometry args={[0.5, 1.5, 8]} />
+          <mesh position={position} geometry={geometryCache.getGeometry('cone')}>
             <meshStandardMaterial color="#00ff80" emissive="#004020" />
           </mesh>
         )
       case 'car':
         return (
           <group position={position}>
-            <mesh position={[0, 0.3, 0]}>
-              <boxGeometry args={[1.8, 0.6, 3.5]} />
+            <mesh position={[0, 0.3, 0]} geometry={geometryCache.getGeometry('blue-car-body')}>
               <meshStandardMaterial color="#0080ff" />
             </mesh>
-            <mesh position={[0, 0.7, 0.5]}>
-              <boxGeometry args={[1.4, 0.4, 1.2]} />
+            <mesh position={[0, 0.7, 0.5]} geometry={geometryCache.getGeometry('blue-car-windshield')}>
               <meshStandardMaterial color="#0040ff" transparent opacity={0.8} />
             </mesh>
           </group>
@@ -62,8 +58,7 @@ function Obstacle({ position, type }: ObstacleProps) {
         return (
           <group position={position}>
             {/* Base platform */}
-            <mesh position={[0, 0.1, 0]}>
-              <cylinderGeometry args={[0.8, 0.8, 0.2]} />
+            <mesh position={[0, 0.1, 0]} geometry={geometryCache.getGeometry('launcher-base')}>
               <meshStandardMaterial 
                 color="#333333" 
                 metalness={0.8}
@@ -72,8 +67,7 @@ function Obstacle({ position, type }: ObstacleProps) {
             </mesh>
             
             {/* Main launcher body */}
-            <mesh position={[0, 0.6, 0]}>
-              <boxGeometry args={[1.2, 0.8, 1.4]} />
+            <mesh position={[0, 0.6, 0]} geometry={geometryCache.getGeometry('launcher-body')}>
               <meshStandardMaterial 
                 color="#ff4400" 
                 emissive="#ff1100" 
@@ -85,30 +79,24 @@ function Obstacle({ position, type }: ObstacleProps) {
             </mesh>
             
             {/* Missile tubes */}
-            <mesh position={[-0.3, 0.8, 0.2]}>
-              <cylinderGeometry args={[0.12, 0.12, 0.6]} />
+            <mesh position={[-0.3, 0.8, 0.2]} geometry={geometryCache.getGeometry('launcher-tube')}>
               <meshStandardMaterial color="#444444" />
             </mesh>
-            <mesh position={[0.3, 0.8, 0.2]}>
-              <cylinderGeometry args={[0.12, 0.12, 0.6]} />
+            <mesh position={[0.3, 0.8, 0.2]} geometry={geometryCache.getGeometry('launcher-tube')}>
               <meshStandardMaterial color="#444444" />
             </mesh>
-            <mesh position={[-0.3, 0.8, -0.2]}>
-              <cylinderGeometry args={[0.12, 0.12, 0.6]} />
+            <mesh position={[-0.3, 0.8, -0.2]} geometry={geometryCache.getGeometry('launcher-tube')}>
               <meshStandardMaterial color="#444444" />
             </mesh>
-            <mesh position={[0.3, 0.8, -0.2]}>
-              <cylinderGeometry args={[0.12, 0.12, 0.6]} />
+            <mesh position={[0.3, 0.8, -0.2]} geometry={geometryCache.getGeometry('launcher-tube')}>
               <meshStandardMaterial color="#444444" />
             </mesh>
-            <mesh position={[0, 0.8, 0]}>
-              <cylinderGeometry args={[0.12, 0.12, 0.6]} />
+            <mesh position={[0, 0.8, 0]} geometry={geometryCache.getGeometry('launcher-tube')}>
               <meshStandardMaterial color="#444444" />
             </mesh>
             
             {/* Warning lights */}
-            <mesh position={[-0.5, 0.9, 0.5]}>
-              <sphereGeometry args={[0.08]} />
+            <mesh position={[-0.5, 0.9, 0.5]} geometry={geometryCache.getGeometry('launcher-light')}>
               <meshStandardMaterial 
                 color="#ff0000" 
                 emissive="#ff0000" 
@@ -116,8 +104,7 @@ function Obstacle({ position, type }: ObstacleProps) {
                 emissiveIntensity={0.8}
               />
             </mesh>
-            <mesh position={[0.5, 0.9, 0.5]}>
-              <sphereGeometry args={[0.08]} />
+            <mesh position={[0.5, 0.9, 0.5]} geometry={geometryCache.getGeometry('launcher-light')}>
               <meshStandardMaterial 
                 color="#ff0000" 
                 emissive="#ff0000" 
@@ -126,13 +113,17 @@ function Obstacle({ position, type }: ObstacleProps) {
               />
             </mesh>
             
-            {/* Glowing pickup indicator */}
-            <pointLight 
-              position={[0, 1.5, 0]} 
-              intensity={2} 
-              distance={8} 
-              color="#ff4400" 
-            />
+            {/* Glowing pickup indicator - using emissive instead of pointLight for performance */}
+            <mesh position={[0, 1.2, 0]} geometry={geometryCache.getGeometry('launcher-glow')}>
+              <meshStandardMaterial 
+                color="#ff4400" 
+                emissive="#ff4400" 
+                // eslint-disable-next-line react/no-unknown-property
+                emissiveIntensity={1.5}
+                transparent
+                opacity={0.8}
+              />
+            </mesh>
           </group>
         )
       default:

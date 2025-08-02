@@ -1,6 +1,7 @@
 import { useRef, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Mesh } from 'three'
+import { geometryCache } from '../utils/geometryCache'
 
 interface PlasmaProjectileProps {
   position: [number, number, number]
@@ -59,16 +60,14 @@ function PlasmaProjectile({ position, angle, carVelocity, onHit, onExpire, proje
   })
 
   return (
-    <mesh ref={projectileRef} position={position}>
+    <mesh ref={projectileRef} position={position} geometry={geometryCache.getGeometry('plasma-core')}>
       {/* Plasma projectile core */}
-      <sphereGeometry args={[0.3, 8, 6]} />
       <meshBasicMaterial 
         color="#00ffff" 
       />
       
       {/* Plasma glow effect */}
-      <mesh position={[0, 0, 0]}>
-        <sphereGeometry args={[0.5, 8, 6]} />
+      <mesh position={[0, 0, 0]} geometry={geometryCache.getGeometry('plasma-glow')}>
         <meshBasicMaterial 
           color="#00ffff" 
           transparent

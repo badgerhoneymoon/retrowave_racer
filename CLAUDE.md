@@ -75,20 +75,18 @@ The car is controlled via keyboard in `Car.tsx`:
 ## Code Quality Requirements
 
 - **ALWAYS run TypeScript check after code changes**: `npx tsc --noEmit`
-- **ALWAYS run ESLint after code changes**: `npm run lint`
-- **Fix all TypeScript errors and ESLint warnings immediately** - never leave broken code
-- **Use auto-fix when possible**: `npm run lint:fix`
+- **NEVER RUN ESLINT** - NO LINT SCRIPT EXISTS IN THIS PROJECT
+- **Fix all TypeScript errors immediately** - never leave broken code
 - **Remove unused imports** - use only what's needed (React import often not needed with modern JSX transform)
 - **Verify all exports/imports** - ensure functions are properly exported from utils
 
 ### Current Status
 - ✅ TypeScript: Configured and working
-- ✅ ESLint: Configured with React TypeScript rules
+- ❌ ESLint: NOT CONFIGURED - DO NOT ATTEMPT TO RUN LINT
 
 ### Available Commands
-- `npm run lint` - Run ESLint on all source files
-- `npm run lint:fix` - Run ESLint and auto-fix issues where possible
 - `npx tsc --noEmit` - Run TypeScript type checking
+- **NO LINT COMMANDS AVAILABLE**
 
 ### Additional Testing Required
 **Domain-Specific Runtime Errors** (not caught by static analysis):
@@ -130,3 +128,4 @@ The car is controlled via keyboard in `Car.tsx`:
 ## Memories
 
 - I told you never launch that command
+- NEVER RUN LINT - NO LINT SCRIPT EXISTS
