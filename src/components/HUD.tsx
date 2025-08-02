@@ -3,11 +3,14 @@ interface HUDProps {
   isBoosted: boolean
   boostTimeRemaining: number
   score: number
+  spreadShotActive: boolean
+  spreadShotTimeRemaining: number
 }
 
-function HUD({ speed, isBoosted, boostTimeRemaining, score }: HUDProps) {
+function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, spreadShotTimeRemaining }: HUDProps) {
   const speedPercent = Math.round((Math.abs(speed) / 1.125) * 100) // Max boosted speed is now ~1.125 (0.9 * 1.25)
   const boostSeconds = Math.max(0, Math.ceil(boostTimeRemaining / 1000))
+  const spreadShotSeconds = Math.max(0, Math.ceil(spreadShotTimeRemaining / 1000))
 
   return (
     <>
@@ -136,6 +139,82 @@ function HUD({ speed, isBoosted, boostTimeRemaining, score }: HUDProps) {
             textShadow: '0 0 10px #00ff00'
           }}>
             ⚡ ACTIVE ⚡
+          </div>
+        </div>
+      )}
+
+      {/* Spread Shot Display - Center Top Right - Only show when active */}
+      {spreadShotActive && (
+        <div style={{
+          position: 'fixed',
+          top: '30px',
+          right: '30%',
+          zIndex: 1000,
+          fontFamily: 'monospace',
+          fontSize: '18px',
+          textAlign: 'center',
+          color: '#ffff00',
+          textShadow: '0 0 15px #ffff00',
+          backgroundColor: 'rgba(0, 0, 0, 0.9)',
+          border: '2px solid #ffff00',
+          borderRadius: '12px',
+          padding: '12px 20px',
+          boxShadow: '0 0 25px rgba(255, 255, 0, 0.6)',
+          minWidth: '140px'
+        }}>
+          <div style={{ 
+            color: '#ff6600', 
+            fontSize: '11px', 
+            marginBottom: '4px',
+            textTransform: 'uppercase',
+            letterSpacing: '2px',
+            opacity: 0.8
+          }}>
+            SPREAD SHOT
+          </div>
+          
+          <div style={{ 
+            fontSize: '22px',
+            fontWeight: 'bold',
+            color: '#ffff00',
+            marginBottom: '6px',
+            textShadow: '0 0 20px #ffff00'
+          }}>
+            {spreadShotSeconds}s
+          </div>
+          
+          {/* Spread Shot Bar */}
+          <div style={{
+            width: '100%',
+            height: '8px',
+            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            border: '1px solid #ffff00',
+            borderRadius: '4px',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              width: `${(spreadShotTimeRemaining / 5000) * 100}%`,
+              height: '100%',
+              backgroundColor: '#ffff00',
+              boxShadow: '0 0 15px #ffff00',
+              transition: 'all 0.1s ease',
+              borderRadius: '3px'
+            }} />
+          </div>
+
+          {/* Spread Shot Status Animation */}
+          <div style={{
+            marginTop: '6px',
+            fontSize: '10px',
+            color: '#ffff00',
+            textAlign: 'center',
+            animation: 'pulse 0.8s infinite',
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            textShadow: '0 0 10px #ffff00'
+          }}>
+            ✦ 8-SHOT ✦
           </div>
         </div>
       )}

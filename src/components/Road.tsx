@@ -49,12 +49,13 @@ function Road({ carZ }: RoadProps) {
     const chunkLength = 100
 
     setRoadChunks(prev => {
-      const currentChunkCenter = Math.round(carZ / chunkLength) * chunkLength
+      const currentChunkCenter = Math.floor(carZ / chunkLength) * chunkLength
       const newChunks = []
       
-      // Generate chunks around car position
-      for (let offset = -chunkLength; offset <= chunkLength; offset += chunkLength) {
-        newChunks.push(currentChunkCenter + offset)
+            // Generate chunks around car position with larger buffer to prevent visible popping
+      const bufferChunks = 3 // how many chunks to keep ahead & behind
+      for (let i = -bufferChunks; i <= bufferChunks; i++) {
+        newChunks.push(currentChunkCenter + i * chunkLength)
       }
       
       // Only update if chunks changed

@@ -4,9 +4,9 @@ import Scene from './components/Scene'
 import HUD from './components/HUD'
 
 function App() {
-  const [hudData, setHudData] = useState({ speed: 0, isBoosted: false, boostTimeRemaining: 0, score: 0 })
+  const [hudData, setHudData] = useState({ speed: 0, isBoosted: false, boostTimeRemaining: 0, score: 0, spreadShotActive: false, spreadShotTimeRemaining: 0 })
 
-  const handleHUDUpdate = (newHudData: { speed: number, isBoosted: boolean, boostTimeRemaining: number, score: number }) => {
+  const handleHUDUpdate = (newHudData: { speed: number, isBoosted: boolean, boostTimeRemaining: number, score: number, spreadShotActive: boolean, spreadShotTimeRemaining: number }) => {
     setHudData(newHudData)
   }
 
@@ -24,6 +24,8 @@ function App() {
         isBoosted={hudData.isBoosted}
         boostTimeRemaining={hudData.boostTimeRemaining}
         score={hudData.score}
+        spreadShotActive={hudData.spreadShotActive}
+        spreadShotTimeRemaining={hudData.spreadShotTimeRemaining}
       />
     </div>
   )

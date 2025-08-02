@@ -1,62 +1,65 @@
-import { useMemo } from 'react'
-import { CanvasTexture } from 'three'
+import { useMemo, useRef } from 'react'
+import { CanvasTexture, Group, NearestFilter } from 'three'
+import { useFrame, useThree } from '@react-three/fiber'
 
-interface RetrowaveSunProps {
-  carZ: number
+function createSunTexture() {
+  const size = 512
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')!
+
+  // Create vertical gradient (top → bottom)
+  const gradient = ctx.createLinearGradient(0, 0, 0, size)
+  gradient.addColorStop(0, '#ffe92d') // bright yellow
+  gradient.addColorStop(0.4, '#ff8a00') // orange
+  gradient.addColorStop(1, '#ff0080') // magenta / pink
+  ctx.fillStyle = gradient
+
+  // Draw the circular sun
+  ctx.beginPath()
+  ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
+  ctx.closePath()
+  ctx.fill()
+
+  // Cut out horizontal stripes for the retro look
+  ctx.globalCompositeOperation = 'destination-out'
+  const stripeCount = 7
+  const stripeHeight = size * 0.05
+  const startY = size * 0.25
+  const gap = stripeHeight * 1.5
+  for (let i = 0; i < stripeCount; i++) {
+    const y = startY + i * gap
+    ctx.fillRect(0, y, size, stripeHeight)
+  }
+  ctx.globalCompositeOperation = 'source-over'
+
+  const texture = new CanvasTexture(canvas)
+  texture.needsUpdate = true
+  texture.magFilter = NearestFilter // crisp stripes
+  return texture
 }
 
-function RetrowaveSun({ carZ }: RetrowaveSunProps) {
-  const texture = useMemo(() => {
-    const size = 512
-    const canvas = document.createElement('canvas')
-    canvas.width = size
-    canvas.height = size
-    const ctx = canvas.getContext('2d')!
+function RetrowaveSun() {
+  const sunRef = useRef<Group>(null)
+  const texture = useMemo(createSunTexture, [])
+  const { camera } = useThree()
 
-    // Clear canvas to transparent
-    ctx.clearRect(0, 0, size, size)
-
-    // Create vertical gradient (top -> bottom)
-    const gradient = ctx.createLinearGradient(0, 0, 0, size)
-    gradient.addColorStop(0, '#ffe92d') // bright yellow
-    gradient.addColorStop(0.4, '#ff8a00') // orange
-    gradient.addColorStop(1, '#ff0080') // magenta / pink
-    ctx.fillStyle = gradient
-
-    // Draw the circular sun
-    ctx.beginPath()
-    ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
-    ctx.closePath()
-    ctx.fill()
-
-    // Cut out horizontal stripes for the retro look
-    ctx.globalCompositeOperation = 'destination-out'
-    const stripeCount = 7
-    const stripeHeight = size * 0.05
-    const startY = size * 0.25
-    const gap = stripeHeight * 1.5
-    for (let i = 0; i < stripeCount; i++) {
-      const y = startY + i * gap
-      ctx.fillRect(0, y, size, stripeHeight)
-    }
-    ctx.globalCompositeOperation = 'source-over'
-
-    const tex = new CanvasTexture(canvas)
-    tex.needsUpdate = true
-    return tex
-  }, [])
+  // Keep the sun a fixed distance ahead of the camera so it stays on the horizon
+  // Run after other frame updates (-1 priority) and gently interpolate for ultra-smooth motion
+  useFrame(() => {
+    if (!sunRef.current) return
+    const targetZ = camera.position.z - 120
+    // Lerp towards target to eliminate any tiny judder from fractional pixel movement
+    sunRef.current.position.set(0, 10, sunRef.current.position.z + (targetZ - sunRef.current.position.z) * 0.2)
+  }, -1)
 
   return (
-    <group position={[0, 10, carZ - 120]}>
+    <group ref={sunRef}>
       <mesh>
         <circleGeometry args={[12, 64]} />
-        <meshBasicMaterial
-          // eslint-disable-next-line react/no-unknown-property
-          map={texture}
-          transparent
-          // eslint-disable-next-line react/no-unknown-property
-          toneMapped={false}
-        />
+        {/* eslint-disable-next-line react/no-unknown-property */}
+        <meshBasicMaterial map={texture} transparent toneMapped={false} />
       </mesh>
     </group>
   )

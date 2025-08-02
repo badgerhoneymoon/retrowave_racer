@@ -1,4 +1,6 @@
 
+import { memo } from 'react'
+
 interface ObstacleProps {
   position: [number, number, number]
   type: 'reward' | 'cone' | 'car'
@@ -64,4 +66,4 @@ function Obstacle({ position, type }: ObstacleProps) {
   return renderObstacle()
 }
 
-export default Obstacle
+export default memo(Obstacle)

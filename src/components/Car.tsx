@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group } from 'three'
 import { ObstacleData, checkCollisions, getObstaclesInRange } from '../utils/collision'
@@ -10,12 +10,15 @@ interface CarProps {
   onDistanceChange?: (distance: number) => void
   obstacles?: ObstacleData[]
   onObstacleCollected?: (obstacleId: string) => void
-  onHUDUpdate?: (hudData: { speed: number, isBoosted: boolean, boostTimeRemaining: number, score: number }) => void
+  onHUDUpdate?: (hudData: { speed: number, isBoosted: boolean, boostTimeRemaining: number, score: number, spreadShotActive: boolean, spreadShotTimeRemaining: number }) => void
   onRewardCollected?: (points: number, position: [number, number, number]) => void
   onShoot?: (startPosition: [number, number, number], angle: number) => void
+  onSpreadShoot?: (shots: Array<{ position: [number, number, number], angle: number }>) => void
+  score?: number
+  onScoreUpdate?: (newScore: number) => void
 }
 
-function Car({ position = [0, 0, 0], onSpeedChange, onPositionChange, obstacles = [], onObstacleCollected, onHUDUpdate, onRewardCollected, onShoot }: CarProps) {
+function Car({ position = [0, 0, 0], onSpeedChange, onPositionChange, obstacles = [], onObstacleCollected, onHUDUpdate, onRewardCollected, onShoot, onSpreadShoot, score = 0, onScoreUpdate }: CarProps) {
   const carRef = useRef<Group>(null)
   const [carPosition, setCarPosition] = useState({ x: 0, z: 0 })
   const [carRotation, setCarRotation] = useState(0)
@@ -24,9 +27,14 @@ function Car({ position = [0, 0, 0], onSpeedChange, onPositionChange, obstacles 
   const [isColliding, setIsColliding] = useState(false)
   const [isBoosted, setIsBoosted] = useState(false)
   const [boostEndTime, setBoostEndTime] = useState(0)
-  const [score, setScore] = useState(0)
+  // Track last position sent to parent to avoid spamming state updates
+  const lastSentPositionRef = useRef(carPosition)
   const [boostTransitionSpeed, setBoostTransitionSpeed] = useState(1.0) // Multiplier for smooth transition
   const [lastShotTime, setLastShotTime] = useState(0)
+  const [lastSpreadShotTime, setLastSpreadShotTime] = useState(0)
+  const [spreadShotActive, setSpreadShotActive] = useState(false)
+  const [spreadShotEndTime, setSpreadShotEndTime] = useState(0)
+  const [lastSpreadShotScore, setLastSpreadShotScore] = useState(0)
   const keysRef = useRef({
     left: false,
     right: false,
@@ -101,17 +109,57 @@ function Car({ position = [0, 0, 0], onSpeedChange, onPositionChange, obstacles 
     // Check if boost expired and handle smooth transition
     const currentTime = state.clock.elapsedTime * 1000
     
+    // Check if spread shot should activate based on score (every 1000 points)
+    if (score >= lastSpreadShotScore + 1000 && !spreadShotActive) {
+      setSpreadShotActive(true)
+      setSpreadShotEndTime(currentTime + 5000) // 5 seconds duration
+      setLastSpreadShotScore(Math.floor(score / 1000) * 1000) // Set to the last 1000 threshold reached
+    }
+    
+    // Check if spread shot expired
+    if (spreadShotActive && currentTime > spreadShotEndTime) {
+      setSpreadShotActive(false)
+    }
+    
+    
     // Handle shooting
     if (keys.shoot && onShoot) {
-      const shootCooldown = 300 // 300ms between shots
-      if (currentTime - lastShotTime > shootCooldown) {
-        // Shoot from front of car in the direction it's facing
-        const shootOffsetDistance = 3
-        const shootX = carPosition.x - Math.sin(carRotation) * shootOffsetDistance
-        const shootZ = carPosition.z - Math.cos(carRotation) * shootOffsetDistance
-        const shootPosition: [number, number, number] = [shootX, 1, shootZ]
-        onShoot(shootPosition, carRotation)
-        setLastShotTime(currentTime)
+      if (spreadShotActive && onSpreadShoot) {
+        // Spread shot mode: much longer cooldown between bursts
+        const spreadShotCooldown = 800 // 800ms between spread shot bursts
+        if (currentTime - lastSpreadShotTime > spreadShotCooldown) {
+          // Fire 8 projectiles in different angles
+          const spreadAngle = Math.PI / 6 // 30 degrees spread
+          const shotAngles = []
+          for (let i = 0; i < 8; i++) {
+            const angleOffset = (i - 3.5) * (spreadAngle / 7) // Spread evenly around center
+            shotAngles.push(carRotation + angleOffset)
+          }
+          
+          const shots = shotAngles.map(angle => {
+            const shootOffsetDistance = 3
+            const shootX = carPosition.x - Math.sin(angle) * shootOffsetDistance
+            const shootZ = carPosition.z - Math.cos(angle) * shootOffsetDistance
+            return {
+              position: [shootX, 1, shootZ] as [number, number, number],
+              angle
+            }
+          })
+          
+          onSpreadShoot(shots)
+          setLastSpreadShotTime(currentTime)
+        }
+      } else {
+        // Normal single shot mode
+        const normalShotCooldown = 300 // 300ms between normal shots
+        if (currentTime - lastShotTime > normalShotCooldown) {
+          const shootOffsetDistance = 3
+          const shootX = carPosition.x - Math.sin(carRotation) * shootOffsetDistance
+          const shootZ = carPosition.z - Math.cos(carRotation) * shootOffsetDistance
+          const shootPosition: [number, number, number] = [shootX, 1, shootZ]
+          onShoot(shootPosition, carRotation)
+          setLastShotTime(currentTime)
+        }
       }
     }
     if (isBoosted && currentTime > boostEndTime) {
@@ -234,7 +282,9 @@ function Car({ position = [0, 0, 0], onSpeedChange, onPositionChange, obstacles 
         } else if (collision.isReward) {
           // Reward collected!
           const points = 100 // Base points for reward
-          setScore(prev => prev + points)
+          if (onScoreUpdate) {
+            onScoreUpdate(score + points)
+          }
           setIsColliding(false)
           
           // Trigger explosion effect callback with reward position
@@ -293,15 +343,23 @@ function Car({ position = [0, 0, 0], onSpeedChange, onPositionChange, obstacles 
       onSpeedChange(speed)
     }
 
-    // Report position to parent component
+    // Report position to parent component – throttled to reduce parent re-renders
     if (onPositionChange) {
-      onPositionChange(carPosition)
+      const last = lastSentPositionRef.current
+      const dx = Math.abs(carPosition.x - last.x)
+      const dz = Math.abs(carPosition.z - last.z)
+      // Notify only when moved significantly (tweak thresholds as needed)
+      if (dx > 0.25 || dz > 0.5) {
+        onPositionChange(carPosition)
+        lastSentPositionRef.current = { ...carPosition }
+      }
     }
 
     // Report HUD data to parent component
     if (onHUDUpdate) {
       const boostTimeRemaining = isBoosted ? Math.max(0, boostEndTime - currentTime) : 0
-      onHUDUpdate({ speed, isBoosted, boostTimeRemaining, score })
+      const spreadShotTimeRemaining = spreadShotActive ? Math.max(0, spreadShotEndTime - currentTime) : 0
+      onHUDUpdate({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, spreadShotTimeRemaining })
     }
 
     // Report total distance to parent component
@@ -313,12 +371,14 @@ function Car({ position = [0, 0, 0], onSpeedChange, onPositionChange, obstacles 
   // Visual colors based on state
   const getCarColor = () => {
     if (isColliding) return "#ffffff" // White flash on collision
+    if (spreadShotActive) return "#ffff00" // Yellow when spread shot active
     if (isBoosted) return "#00ff00"   // Green when boosted
     return "#ff0080"                  // Normal pink
   }
   
   const getAccentColor = () => {
     if (isColliding) return "#ffffff" // White flash on collision
+    if (spreadShotActive) return "#ffff80" // Light yellow when spread shot active
     if (isBoosted) return "#80ff80"   // Light green when boosted
     return "#ff6600"                  // Normal orange
   }
@@ -360,4 +420,4 @@ function Car({ position = [0, 0, 0], onSpeedChange, onPositionChange, obstacles 
   )
 }
 
-export default Car
+export default memo(Car)

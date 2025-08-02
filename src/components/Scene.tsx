@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import Car from './Car'
 import Road from './Road'
 import ObstacleManager from './ObstacleManager'
 import ExplosionEffect from './ExplosionEffect'
-import RetrowaveSun from './RetrowaveSun'
+// import RetrowaveSun from './RetrowaveSun'
 import PlasmaProjectile from './PlasmaProjectile'
 import { ObstacleData } from '../utils/collision'
 
@@ -19,7 +19,7 @@ interface Projectile {
 }
 
 interface SceneProps {
-  onHUDUpdate: (hudData: { speed: number, isBoosted: boolean, boostTimeRemaining: number, score: number }) => void
+  onHUDUpdate: (hudData: { speed: number, isBoosted: boolean, boostTimeRemaining: number, score: number, spreadShotActive: boolean, spreadShotTimeRemaining: number }) => void
 }
 
 function Scene({ onHUDUpdate }: SceneProps) {
@@ -27,6 +27,7 @@ function Scene({ onHUDUpdate }: SceneProps) {
   const [obstacles, setObstacles] = useState<ObstacleData[]>([])
   const [explosions, setExplosions] = useState<Explosion[]>([])
   const [projectiles, setProjectiles] = useState<Projectile[]>([])
+  const [score, setScore] = useState(0)
 
   const handleObstaclesUpdate = (newObstacles: ObstacleData[]) => {
     setObstacles(newObstacles)
@@ -50,16 +51,27 @@ function Scene({ onHUDUpdate }: SceneProps) {
     setExplosions(prev => prev.filter(exp => exp.id !== explosionId))
   }
 
-  const handleShoot = (startPosition: [number, number, number], angle: number) => {
-    const projectileId = `projectile-${Date.now()}-${Math.random()}`
-    setProjectiles(prev => [...prev, {
-      id: projectileId,
-      position: startPosition,
-      angle: angle
-    }])
-  }
+  const handleShoot = useCallback((startPosition: [number, number, number], angle: number) => {
+    setProjectiles(prev => {
+      // Limit max projectiles to prevent performance issues
+      const maxProjectiles = 8
+      let newProjectiles = prev
+      
+      // Remove oldest projectiles if we're at the limit
+      if (prev.length >= maxProjectiles) {
+        newProjectiles = prev.slice(1) // Remove the first (oldest) projectile
+      }
+      
+      const projectileId = `projectile-${Date.now()}-${Math.random()}`
+      return [...newProjectiles, {
+        id: projectileId,
+        position: startPosition,
+        angle: angle
+      }]
+    })
+  }, [])
 
-  const handleProjectileHit = (projectileId: string, targetPosition: [number, number, number]) => {
+  const handleProjectileHit = useCallback((projectileId: string, targetPosition: [number, number, number]) => {
     // Remove the projectile
     setProjectiles(prev => prev.filter(proj => proj.id !== projectileId))
     
@@ -72,6 +84,9 @@ function Scene({ onHUDUpdate }: SceneProps) {
       })
       
       if (hitObstacle) {
+        // Add 10 points for destroying a car
+        setScore(prev => prev + 10)
+        
         // Create explosion at the destroyed car position
         const explosionId = `explosion-${Date.now()}-${Math.random()}`
         setExplosions(prevExp => [...prevExp, {
@@ -85,11 +100,34 @@ function Scene({ onHUDUpdate }: SceneProps) {
       
       return prev
     })
-  }
+  }, [])
 
-  const handleProjectileExpire = (projectileId: string) => {
+  const handleProjectileExpire = useCallback((projectileId: string) => {
     setProjectiles(prev => prev.filter(proj => proj.id !== projectileId))
-  }
+  }, [])
+
+  const handleSpreadShoot = useCallback((shots: Array<{ position: [number, number, number], angle: number }>) => {
+    setProjectiles(prev => {
+      // Limit max projectiles to prevent performance issues
+      const maxProjectiles = 16 // Increased for spread shot
+      let newProjectiles = prev
+      
+      // Remove oldest projectiles if adding spread shot would exceed limit
+      const totalNewProjectiles = shots.length
+      if (prev.length + totalNewProjectiles > maxProjectiles) {
+        const projectilesToRemove = (prev.length + totalNewProjectiles) - maxProjectiles
+        newProjectiles = prev.slice(projectilesToRemove)
+      }
+      
+      const newShots = shots.map((shot, index) => ({
+        id: `spread-projectile-${Date.now()}-${index}`,
+        position: shot.position,
+        angle: shot.angle
+      }))
+      
+      return [...newProjectiles, ...newShots]
+    })
+  }, [])
 
   return (
     <>
@@ -105,7 +143,7 @@ function Scene({ onHUDUpdate }: SceneProps) {
         color="#ff00ff"
       />
       
-      <RetrowaveSun carZ={Math.round(carPosition.z / 2) * 2} />
+      {/* <RetrowaveSun /> */}
       <Road carZ={carPosition.z} />
       <ObstacleManager 
         carPosition={carPosition} 
@@ -120,6 +158,9 @@ function Scene({ onHUDUpdate }: SceneProps) {
         onHUDUpdate={onHUDUpdate}
         onRewardCollected={handleRewardCollected}
         onShoot={handleShoot}
+        onSpreadShoot={handleSpreadShoot}
+        score={score}
+        onScoreUpdate={setScore}
       />
       
       {/* Render explosion effects */}

@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Mesh } from 'three'
 
@@ -73,4 +73,4 @@ function PlasmaProjectile({ position, angle, onHit, onExpire, projectileId, obst
   )
 }
 
-export default PlasmaProjectile
+export default memo(PlasmaProjectile)
