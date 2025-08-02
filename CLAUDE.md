@@ -125,6 +125,75 @@ The car is controlled via keyboard in `Car.tsx`:
 - **Detection**: AABB collision detection with type-specific bounding boxes
 - **Results**: Returns collision flags: `isBoost`, `isReward`, `isRocketLauncher`
 
+## Performance Optimization Rules ⚡
+
+**CRITICAL**: Apply these performance best practices to ALL new components and features from the start!
+
+### React Performance Rules
+- **ALWAYS use React.memo** for pure display components (components that only depend on props)
+- **NEVER setState in useFrame** - use refs instead for values that change every frame
+- **Memoize expensive calculations** with useMemo (materials, trigonometry, etc.)
+- **Pre-compute static values** - sin/cos, material instances, geometry, etc.
+- **Minimize parent re-renders** - avoid unnecessary callback props, use refs for communication
+
+### Three.js Performance Rules
+- **Reuse Vector3 instances** - create module-level scratch vectors, never `vector.clone()` in loops
+- **Memoize materials** - use useMemo for materials that depend on state changes
+- **Pool objects** - reuse geometries, materials, and meshes when possible
+- **Avoid console.log in loops** - causes frame spikes in development builds
+- **Throttle material updates** - opacity/color changes don't need 60fps, use every 3rd frame
+
+### Frame Loop Optimization
+- **Gate expensive operations** - only run collision detection, array filtering when needed
+- **Use dirty flags** - track when updates are actually required vs running every frame
+- **Batch DOM updates** - for UI elements, update directly instead of React state
+- **Prefer refs over state** - for values that change frequently (position, velocity, etc.)
+
+### Component Architecture Rules
+- **Separate concerns**: Logic components vs Display components vs Effect components
+- **Keep components under 400 lines** - break into smaller focused modules
+- **Export utilities separately** - collision, math, generation functions in utils/
+- **Use proper dependency arrays** - for useMemo, useEffect, useCallback
+
+### Examples to Follow
+```typescript
+// ✅ GOOD: Memoized material
+const material = useMemo(() => (
+  <meshStandardMaterial color={getColor()} />
+), [state1, state2])
+
+// ✅ GOOD: Scratch vector reuse
+const SCRATCH_VECTOR = new Vector3()
+// In useFrame:
+position.add(SCRATCH_VECTOR.copy(velocity).multiplyScalar(delta))
+
+// ✅ GOOD: Ref for frame values
+const speedRef = useRef(0)
+// In useFrame: speedRef.current += acceleration * delta
+
+// ✅ GOOD: Gated expensive operations
+if (Math.abs(carZ - lastCarZ.current) > 10) {
+  updateObstacles() // Only when car moved significantly
+}
+
+// ❌ BAD: State in useFrame
+const [speed, setSpeed] = useState(0)
+// In useFrame: setSpeed(prev => prev + acceleration * delta)
+
+// ❌ BAD: Clone in loops
+velocity.clone().multiplyScalar(delta) // Creates garbage every frame
+
+// ❌ BAD: Material recreation
+<meshStandardMaterial color={isDynamic ? '#ff0000' : '#00ff00'} />
+```
+
+### Testing Requirements
+After implementing any performance-sensitive feature:
+1. **Run TypeScript check**: `npx tsc --noEmit`
+2. **Test frame rate** during intense gameplay (multiple explosions, many obstacles)
+3. **Monitor console** for warnings or errors during development
+4. **Verify memory usage** doesn't grow over time during extended play
+
 ## Memories
 
 - I told you never launch that command
