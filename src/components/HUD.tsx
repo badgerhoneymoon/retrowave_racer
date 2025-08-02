@@ -8,7 +8,7 @@ interface HUDProps {
 }
 
 function HUD({ speed, isBoosted, boostTimeRemaining, score, spreadShotActive, spreadShotTimeRemaining }: HUDProps) {
-  const speedPercent = Math.round((Math.abs(speed) / 1.125) * 100) // Max boosted speed is now ~1.125 (0.9 * 1.25)
+  const speedPercent = Math.round((Math.abs(speed) / 1.8) * 100) // Max possible speed is now ~1.8 (0.9 * 2.0)
   const boostSeconds = Math.max(0, Math.ceil(boostTimeRemaining / 1000))
   const spreadShotSeconds = Math.max(0, Math.ceil(spreadShotTimeRemaining / 1000))
 

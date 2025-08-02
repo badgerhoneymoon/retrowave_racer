@@ -16,6 +16,7 @@ interface Projectile {
   id: string
   position: [number, number, number]
   angle: number
+  carVelocity: number
 }
 
 interface SceneProps {
@@ -51,7 +52,7 @@ function Scene({ onHUDUpdate }: SceneProps) {
     setExplosions(prev => prev.filter(exp => exp.id !== explosionId))
   }
 
-  const handleShoot = useCallback((startPosition: [number, number, number], angle: number) => {
+  const handleShoot = useCallback((startPosition: [number, number, number], angle: number, carVelocity: number) => {
     setProjectiles(prev => {
       // Limit max projectiles to prevent performance issues
       const maxProjectiles = 8
@@ -66,7 +67,8 @@ function Scene({ onHUDUpdate }: SceneProps) {
       return [...newProjectiles, {
         id: projectileId,
         position: startPosition,
-        angle: angle
+        angle: angle,
+        carVelocity: carVelocity
       }]
     })
   }, [])
@@ -106,7 +108,7 @@ function Scene({ onHUDUpdate }: SceneProps) {
     setProjectiles(prev => prev.filter(proj => proj.id !== projectileId))
   }, [])
 
-  const handleSpreadShoot = useCallback((shots: Array<{ position: [number, number, number], angle: number }>) => {
+  const handleSpreadShoot = useCallback((shots: Array<{ position: [number, number, number], angle: number, carVelocity: number }>) => {
     setProjectiles(prev => {
       // Limit max projectiles to prevent performance issues
       const maxProjectiles = 16 // Increased for spread shot
@@ -122,7 +124,8 @@ function Scene({ onHUDUpdate }: SceneProps) {
       const newShots = shots.map((shot, index) => ({
         id: `spread-projectile-${Date.now()}-${index}`,
         position: shot.position,
-        angle: shot.angle
+        angle: shot.angle,
+        carVelocity: shot.carVelocity
       }))
       
       return [...newProjectiles, ...newShots]
@@ -178,6 +181,7 @@ function Scene({ onHUDUpdate }: SceneProps) {
           key={projectile.id}
           position={projectile.position}
           angle={projectile.angle}
+          carVelocity={projectile.carVelocity}
           projectileId={projectile.id}
           obstacles={obstacles}
           onHit={handleProjectileHit}

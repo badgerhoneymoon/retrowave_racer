@@ -12,8 +12,8 @@ interface CarProps {
   onObstacleCollected?: (obstacleId: string) => void
   onHUDUpdate?: (hudData: { speed: number, isBoosted: boolean, boostTimeRemaining: number, score: number, spreadShotActive: boolean, spreadShotTimeRemaining: number }) => void
   onRewardCollected?: (points: number, position: [number, number, number]) => void
-  onShoot?: (startPosition: [number, number, number], angle: number) => void
-  onSpreadShoot?: (shots: Array<{ position: [number, number, number], angle: number }>) => void
+  onShoot?: (startPosition: [number, number, number], angle: number, carVelocity: number) => void
+  onSpreadShoot?: (shots: Array<{ position: [number, number, number], angle: number, carVelocity: number }>) => void
   score?: number
   onScoreUpdate?: (newScore: number) => void
 }
@@ -31,6 +31,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
   // Track last position sent to parent to avoid spamming state updates
   const lastSentPositionRef = useRef({ x: 0, z: 0 })
   const [boostTransitionSpeed, setBoostTransitionSpeed] = useState(1.0) // Multiplier for smooth transition
+  const [targetBoostSpeed, setTargetBoostSpeed] = useState(1.0) // Target boost multiplier
   const [lastShotTime, setLastShotTime] = useState(0)
   const [lastSpreadShotTime, setLastSpreadShotTime] = useState(0)
   const [spreadShotActive, setSpreadShotActive] = useState(false)
@@ -143,7 +144,8 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
             const shootZ = carPositionRef.current.z - Math.cos(angle) * shootOffsetDistance
             return {
               position: [shootX, 1, shootZ] as [number, number, number],
-              angle
+              angle,
+              carVelocity: speedRef.current
             }
           })
           
@@ -158,20 +160,21 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
           const shootX = carPositionRef.current.x - Math.sin(carRotationRef.current) * shootOffsetDistance
           const shootZ = carPositionRef.current.z - Math.cos(carRotationRef.current) * shootOffsetDistance
           const shootPosition: [number, number, number] = [shootX, 1, shootZ]
-          onShoot(shootPosition, carRotationRef.current)
+          onShoot(shootPosition, carRotationRef.current, speedRef.current)
           setLastShotTime(currentTime)
         }
       }
     }
     if (isBoosted && currentTime > boostEndTime) {
       setIsBoosted(false)
+      setTargetBoostSpeed(1.0) // Reset target speed when boost expires
     }
     
-    // Smooth boost transition - gradually reduce speed multiplier when boost ends
+    // Smooth boost transition - gradually transition to target speed
     setBoostTransitionSpeed(prev => {
       if (isBoosted) {
-        // When boosted, quickly ramp up to 1.25x speed (+25% boost)
-        return Math.min(1.25, prev + (5.0 * delta)) // Fast ramp up
+        // When boosted, quickly ramp up to target boost speed
+        return Math.min(targetBoostSpeed, prev + (5.0 * delta)) // Fast ramp up
       } else {
         // When not boosted, gradually return to 1.0x speed
         return Math.max(1.0, prev - (2.0 * delta)) // Slower ramp down for smooth transition
@@ -259,8 +262,15 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     if (collision.hit) {
       if (collision.isBoost) {
         // Speed boost collected!
-        setIsBoosted(true)
-        setBoostEndTime(currentTime + 5000) // 5 seconds boost
+        if (isBoosted) {
+          // Already boosted - add cumulative 10% (0.1) to current boost
+          setTargetBoostSpeed(prev => Math.min(2.0, prev + 0.1)) // Cap at 2.0x (100% boost)
+        } else {
+          // First boost - set to 1.35x (+35%)
+          setIsBoosted(true)
+          setTargetBoostSpeed(1.35)
+        }
+        setBoostEndTime(currentTime + 5000) // Reset to 5 seconds
         setIsColliding(false)
         
         // Remove the collected boost obstacle
@@ -297,12 +307,31 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
           z: newZ
         }
       } else {
-        // Regular collision - stop movement and reduce speed
+        // Regular collision - bounce only if speed is significant
         setIsColliding(true)
-        speedRef.current = Math.max(0, speedRef.current * 0.1) // Dramatic speed reduction
         
-        // Don't update position - stay where we are
-        // carPositionRef.current stays the same
+        const currentSpeed = Math.abs(speedRef.current)
+        const speedThreshold = 0.05 // No bounce below this speed
+        
+        if (currentSpeed < speedThreshold) {
+          // Very slow collision - just stop, no bounce
+          speedRef.current = 0
+          // Position stays the same - no bounce movement
+        } else {
+          // Significant speed - bounce back proportional to speed (more dramatic at high speeds)
+          const bounceDistance = currentSpeed * 4.5 // Increased from 3.0 for more bounce
+          const bounceX = carPositionRef.current.x + Math.sin(carRotationRef.current) * bounceDistance
+          const bounceZ = carPositionRef.current.z + Math.cos(carRotationRef.current) * bounceDistance
+          
+          // Apply bounce position (clamped to road bounds)
+          carPositionRef.current = {
+            x: Math.max(-18, Math.min(18, bounceX)),
+            z: bounceZ
+          }
+          
+          // Reverse speed more dramatically at high speeds
+          speedRef.current = -currentSpeed * 0.5 // Increased from 0.3 for stronger bounce
+        }
       }
     } else {
       setIsColliding(false)

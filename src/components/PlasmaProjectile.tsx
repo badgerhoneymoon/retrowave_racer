@@ -5,23 +5,29 @@ import { Mesh } from 'three'
 interface PlasmaProjectileProps {
   position: [number, number, number]
   angle: number
+  carVelocity: number
   onHit: (projectileId: string, targetPosition: [number, number, number]) => void
   onExpire: (projectileId: string) => void
   projectileId: string
   obstacles: Array<{ id: string; x: number; z: number; type: string }>
 }
 
-function PlasmaProjectile({ position, angle, onHit, onExpire, projectileId, obstacles }: PlasmaProjectileProps) {
+function PlasmaProjectile({ position, angle, carVelocity, onHit, onExpire, projectileId, obstacles }: PlasmaProjectileProps) {
   const projectileRef = useRef<Mesh>(null)
-  const speed = 80 // Fast projectile speed
+  const baseSpeed = 80 // Base projectile speed
   const maxDistance = 200 // Max range before projectile expires
 
   useFrame((_state, delta) => {
     if (!projectileRef.current) return
 
+    // Add car velocity to projectile speed for realistic physics
+    // Convert car velocity from units/frame to units/second (multiply by ~60)
+    const carVelocityInWorldUnits = carVelocity * 60
+    const effectiveSpeed = baseSpeed + carVelocityInWorldUnits
+
     // Move projectile in the direction of the car's rotation
-    const deltaX = -Math.sin(angle) * speed * delta
-    const deltaZ = -Math.cos(angle) * speed * delta
+    const deltaX = -Math.sin(angle) * effectiveSpeed * delta
+    const deltaZ = -Math.cos(angle) * effectiveSpeed * delta
     
     projectileRef.current.position.x += deltaX
     projectileRef.current.position.z += deltaZ
