@@ -4,6 +4,7 @@ import { Group } from 'three'
 import { ObstacleData, checkCollisions, getObstaclesInRange } from '../utils/collision'
 import { geometryCache } from '../utils/geometryCache'
 import { useCarWeapons } from '../hooks/useCarWeapons'
+import { useCarPhysics } from '../hooks/useCarPhysics'
 
 interface CarProps {
   position?: [number, number, number]
@@ -23,11 +24,9 @@ interface CarProps {
 
 function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacleCollected, onRewardCollected, onShoot, onSpreadShoot, onMissileShoot, score = 0, onScoreUpdate, onEnemyCarBounce }: CarProps) {
   const carRef = useRef<Group>(null)
-  // Convert to refs to avoid React re-renders every frame
-  const carPositionRef = useRef({ x: 0, z: 0 })
-  const carRotationRef = useRef(0)
-  const speedRef = useRef(0)
-  const steerAngleRef = useRef(0)
+  
+  // Physics hook
+  const physics = useCarPhysics()
   const [isColliding, setIsColliding] = useState(false)
   const [isBoosted, setIsBoosted] = useState(false)
   const [boostEndTime, setBoostEndTime] = useState(0)
@@ -131,12 +130,12 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     
     // Handle shooting
     if (keys.shoot) {
-      weapons.handleShoot(currentTime, carPositionRef.current, carRotationRef.current, speedRef.current)
+      weapons.handleShoot(currentTime, physics.carPositionRef.current, physics.carRotationRef.current, physics.speedRef.current)
     }
     
     // Handle missile shooting
     if (keys.missile) {
-      weapons.handleMissileShoot(currentTime, carPositionRef.current, carRotationRef.current, speedRef.current)
+      weapons.handleMissileShoot(currentTime, physics.carPositionRef.current, physics.carRotationRef.current, physics.speedRef.current)
     }
     if (isBoosted && currentTime > boostEndTime) {
       setIsBoosted(false)
@@ -152,81 +151,16 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
       boostTransitionSpeedRef.current = Math.max(1.0, boostTransitionSpeedRef.current - (2.0 * delta)) // Slower ramp down for smooth transition
     }
 
-    // Car physics constants (modified by smooth boost transition)
-    const baseMaxSpeed = 0.9 // Increased from 0.6 to make old boost speed the new default
-    const maxSpeed = baseMaxSpeed * boostTransitionSpeedRef.current // Smoothly transition between normal and boost speed
-    const acceleration = 1.8 * boostTransitionSpeedRef.current // Increased proportionally
-    const deceleration = 0.8
-    const brakeDeceleration = 2.0
-    const maxSteerAngle = 0.8
-    const steerSpeed = 3.0
-
-    // Update speed based on input (direct ref modification - no React re-render)
-    let newSpeed = speedRef.current
-    
-    if (keys.up) {
-      newSpeed += acceleration * delta
-    } else if (keys.down) {
-      newSpeed -= brakeDeceleration * delta
-    } else {
-      // Natural deceleration
-      if (newSpeed > 0) {
-        newSpeed = Math.max(0, newSpeed - deceleration * delta)
-      } else if (newSpeed < 0) {
-        newSpeed = Math.min(0, newSpeed + deceleration * delta)
-      }
-    }
-    
-    speedRef.current = Math.max(-maxSpeed * 0.5, Math.min(maxSpeed, newSpeed))
-
-    // Update steering angle based on input (direct ref modification - no React re-render)
-    let newSteerAngle = steerAngleRef.current
-    
-    if (keys.left) {
-      newSteerAngle += steerSpeed * delta  // Left should be positive for correct mesh rotation
-    } else if (keys.right) {
-      newSteerAngle -= steerSpeed * delta  // Right should be negative for correct mesh rotation
-    } else {
-      // Return steering to center
-      if (Math.abs(newSteerAngle) > 0.1) {
-        newSteerAngle *= 0.8
-      } else {
-        newSteerAngle = 0
-      }
-    }
-    
-    steerAngleRef.current = Math.max(-maxSteerAngle, Math.min(maxSteerAngle, newSteerAngle))
-
-    // Update car rotation and position based on physics (direct ref modification - no React re-render)
-    // Make steering more responsive at low speeds, normal at high speeds
-    const absSpeed = Math.abs(speedRef.current)
-    let speedFactor
-    
-    if (absSpeed < 0.2) {
-      // Very low speed (like after collision) - very maneuverable
-      speedFactor = 0.8
-    } else if (absSpeed < 0.4) {
-      // Low speed - more maneuverable than high speed
-      speedFactor = 0.6
-    } else {
-      // Normal/high speed - standard responsiveness
-      speedFactor = Math.max(0.3, absSpeed)
-    }
-    
-    const turnRate = steerAngleRef.current * speedFactor * 2.0
-    carRotationRef.current += turnRate * delta
-
-    // Cache trigonometric calculations after rotation update for performance
-    const sinAngle = Math.sin(carRotationRef.current)
-    const cosAngle = Math.cos(carRotationRef.current)
-
-    // Calculate new position using cached trigonometric values (direct ref modification - no React re-render)
-    const newX = carPositionRef.current.x - sinAngle * speedRef.current * delta * 60  // Fixed: - for correct left/right movement
-    const newZ = carPositionRef.current.z - cosAngle * speedRef.current * delta * 60  // Fixed: - instead of +
+    // Update physics using the hook
+    const { newX, newZ, sinAngle, cosAngle } = physics.updatePhysics({
+      boostTransitionSpeed: boostTransitionSpeedRef.current,
+      delta,
+      keys
+    })
       
     // Check for collisions at new position
     const nearbyObstacles = getObstaclesInRange(obstacles, newX, newZ, 10)
-    const collision = checkCollisions(newX, newZ, nearbyObstacles, speedRef.current)
+    const collision = checkCollisions(newX, newZ, nearbyObstacles, physics.speedRef.current)
     
     if (collision.hit) {
       if (collision.isBoost) {
@@ -248,10 +182,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
         }
         
         // Continue movement - don't stop for boost items
-        carPositionRef.current = {
-          x: Math.max(-18, Math.min(18, newX)),
-          z: newZ
-        }
+        physics.updatePosition(newX, newZ)
       } else if (collision.isReward) {
         // Reward collected!
         const points = 100 // Base points for reward
@@ -271,10 +202,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
         }
         
         // Continue movement - don't stop for rewards
-        carPositionRef.current = {
-          x: Math.max(-18, Math.min(18, newX)),
-          z: newZ
-        }
+        physics.updatePosition(newX, newZ)
       } else if (collision.isRocketLauncher) {
         // Rocket launcher collected!
         weapons.addMissiles(5) // Add 5 missiles to current count (accumulate)
@@ -286,16 +214,10 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
         }
         
         // Continue movement - don't stop for rocket launcher
-        carPositionRef.current = {
-          x: Math.max(-18, Math.min(18, newX)),
-          z: newZ
-        }
+        physics.updatePosition(newX, newZ)
       } else {
         // Regular collision - bounce only if speed is significant
         setIsColliding(true)
-        
-        const currentSpeed = Math.abs(speedRef.current)
-        const speedThreshold = 0.05 // No bounce below this speed
         
         // Handle enemy car bounce if collision data includes it
         if (collision.enemyCarBounce && onEnemyCarBounce && collision.obstacle) {
@@ -306,45 +228,24 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
           )
         }
         
-        if (currentSpeed < speedThreshold) {
-          // Very slow collision - just stop, no bounce
-          speedRef.current = 0
-          // Position stays the same - no bounce movement
-        } else {
-          // Significant speed - bounce back proportional to speed (more dramatic at high speeds)
-          const bounceDistance = currentSpeed * 4.5 // Increased from 3.0 for more bounce
-          const bounceX = carPositionRef.current.x + sinAngle * bounceDistance
-          const bounceZ = carPositionRef.current.z + cosAngle * bounceDistance
-          
-          // Apply bounce position (clamped to road bounds)
-          carPositionRef.current = {
-            x: Math.max(-18, Math.min(18, bounceX)),
-            z: bounceZ
-          }
-          
-          // Reverse speed more dramatically at high speeds
-          speedRef.current = -currentSpeed * 0.5 // Increased from 0.3 for stronger bounce
-        }
+        physics.handleCollisionBounce(sinAngle, cosAngle)
       }
     } else {
       setIsColliding(false)
-      carPositionRef.current = {
-        x: Math.max(-18, Math.min(18, newX)), // Match full grid width (-20 to +20 with car width margin)
-        z: newZ
-      }
+      physics.updatePosition(newX, newZ)
     }
 
-    // Apply transformations to the car mesh (use refs directly)
+    // Apply transformations to the car mesh (use physics refs)
     if (carRef.current) {
-      carRef.current.position.x = carPositionRef.current.x
-      carRef.current.position.z = carPositionRef.current.z
-      carRef.current.rotation.y = carRotationRef.current
+      carRef.current.position.x = physics.carPositionRef.current.x
+      carRef.current.position.z = physics.carPositionRef.current.z
+      carRef.current.rotation.y = physics.carRotationRef.current
     }
 
     // Update camera to follow car (stable following with closer distance)
     const camera = state.camera
-    const targetX = carPositionRef.current.x
-    const targetZ = carPositionRef.current.z + 6  // Closer camera behind car
+    const targetX = physics.carPositionRef.current.x
+    const targetZ = physics.carPositionRef.current.z + 6  // Closer camera behind car
     const targetY = 4  // Lower camera height
 
     // Gentler camera following - slower interpolation for stability
@@ -354,12 +255,12 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     camera.position.y += (targetY - camera.position.y) * cameraLerpFactor
     
     // Make camera look at car
-    camera.lookAt(carPositionRef.current.x, 0, carPositionRef.current.z)
+    camera.lookAt(physics.carPositionRef.current.x, 0, physics.carPositionRef.current.z)
 
     // Report position to parent component – with smoother throttling
     if (onPositionChange) {
       const last = lastSentPositionRef.current
-      const current = carPositionRef.current
+      const current = physics.carPositionRef.current
       const dx = Math.abs(current.x - last.x)
       const dz = Math.abs(current.z - last.z)
       // Use larger thresholds to reduce frequency and prevent stutters
@@ -376,7 +277,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
       const weaponState = weapons.getWeaponState(currentTime)
       
       // Update speed display directly
-      const speedPercent = Math.round((Math.abs(speedRef.current) / 1.8) * 100)
+      const speedPercent = Math.round((Math.abs(physics.speedRef.current) / 1.8) * 100)
       const speedElement = document.querySelector('[data-hud="speed-value"]') as HTMLElement
       const speedBarElement = document.querySelector('[data-hud="speed-bar"]') as HTMLElement
       if (speedElement) {
