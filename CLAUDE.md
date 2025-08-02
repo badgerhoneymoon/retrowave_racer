@@ -195,6 +195,4 @@ After implementing any performance-sensitive feature:
 4. **Verify memory usage** doesn't grow over time during extended play
 
 ## Memories
-
-- I told you never launch that command
 - NEVER RUN LINT - NO LINT SCRIPT EXISTS

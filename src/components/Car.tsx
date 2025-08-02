@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { Group } from 'three'
 import { ObstacleData, checkCollisions, getObstaclesInRange } from '../utils/collision'
 import { geometryCache } from '../utils/geometryCache'
+import { useCarWeapons } from '../hooks/useCarWeapons'
 
 interface CarProps {
   position?: [number, number, number]
@@ -34,13 +35,13 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
   const lastSentPositionRef = useRef({ x: 0, z: 0 })
   const boostTransitionSpeedRef = useRef(1.0) // Multiplier for smooth transition
   const [targetBoostSpeed, setTargetBoostSpeed] = useState(1.0) // Target boost multiplier
-  const [lastShotTime, setLastShotTime] = useState(0)
-  const [lastSpreadShotTime, setLastSpreadShotTime] = useState(0)
-  const [spreadShotActive, setSpreadShotActive] = useState(false)
-  const [spreadShotEndTime, setSpreadShotEndTime] = useState(0)
-  const [lastSpreadShotScore, setLastSpreadShotScore] = useState(0)
-  const [lastMissileTime, setLastMissileTime] = useState(0)
-  const [missilesRemaining, setMissilesRemaining] = useState(5)
+  // Weapon systems hook
+  const weapons = useCarWeapons({
+    score,
+    onShoot,
+    onSpreadShoot,
+    onMissileShoot
+  })
   const frameCountRef = useRef(0) // Proper frame counter
   const keysRef = useRef({
     left: false,
@@ -125,75 +126,17 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     // Check if boost expired and handle smooth transition
     const currentTime = state.clock.elapsedTime * 1000
     
-    // Check if spread shot should activate based on score (every 1000 points)
-    if (score >= lastSpreadShotScore + 1000 && !spreadShotActive) {
-      setSpreadShotActive(true)
-      setSpreadShotEndTime(currentTime + 5000) // 5 seconds duration
-      setLastSpreadShotScore(Math.floor(score / 1000) * 1000) // Set to the last 1000 threshold reached
-    }
-    
-    // Check if spread shot expired
-    if (spreadShotActive && currentTime > spreadShotEndTime) {
-      setSpreadShotActive(false)
-    }
-    
+    // Update weapon systems
+    weapons.updateSpreadShot(currentTime)
     
     // Handle shooting
-    if (keys.shoot && onShoot) {
-      if (spreadShotActive && onSpreadShoot) {
-        // Spread shot mode: much longer cooldown between bursts
-        const spreadShotCooldown = 800 // 800ms between spread shot bursts
-        if (currentTime - lastSpreadShotTime > spreadShotCooldown) {
-          // Fire 8 projectiles in different angles
-          const spreadAngle = Math.PI / 6 // 30 degrees spread
-          const shotAngles = []
-          for (let i = 0; i < 8; i++) {
-            const angleOffset = (i - 3.5) * (spreadAngle / 7) // Spread evenly around center
-            shotAngles.push(carRotationRef.current + angleOffset)
-          }
-          
-          const shots = shotAngles.map(angle => {
-            const shootOffsetDistance = 3
-            const shootSin = Math.sin(angle)
-            const shootCos = Math.cos(angle)
-            const shootX = carPositionRef.current.x - shootSin * shootOffsetDistance
-            const shootZ = carPositionRef.current.z - shootCos * shootOffsetDistance
-            return {
-              position: [shootX, 1, shootZ] as [number, number, number],
-              angle,
-              carVelocity: speedRef.current
-            }
-          })
-          
-          onSpreadShoot(shots)
-          setLastSpreadShotTime(currentTime)
-        }
-      } else {
-        // Normal single shot mode
-        const normalShotCooldown = 300 // 300ms between normal shots
-        if (currentTime - lastShotTime > normalShotCooldown) {
-          const shootOffsetDistance = 3
-          const shootX = carPositionRef.current.x - Math.sin(carRotationRef.current) * shootOffsetDistance
-          const shootZ = carPositionRef.current.z - Math.cos(carRotationRef.current) * shootOffsetDistance
-          const shootPosition: [number, number, number] = [shootX, 1, shootZ]
-          onShoot(shootPosition, carRotationRef.current, speedRef.current)
-          setLastShotTime(currentTime)
-        }
-      }
+    if (keys.shoot) {
+      weapons.handleShoot(currentTime, carPositionRef.current, carRotationRef.current, speedRef.current)
     }
     
     // Handle missile shooting
-    if (keys.missile && onMissileShoot && missilesRemaining > 0) {
-      const missileCooldown = 800 // Increased to 0.8 seconds to reduce React re-render frequency
-      if (currentTime - lastMissileTime > missileCooldown) {
-        const shootOffsetDistance = 3
-        const shootX = carPositionRef.current.x - Math.sin(carRotationRef.current) * shootOffsetDistance
-        const shootZ = carPositionRef.current.z - Math.cos(carRotationRef.current) * shootOffsetDistance
-        const shootPosition: [number, number, number] = [shootX, 2, shootZ] // Higher Y for missiles
-        onMissileShoot(shootPosition, carRotationRef.current, speedRef.current)
-        setLastMissileTime(currentTime)
-        setMissilesRemaining(prev => Math.max(0, prev - 1)) // Prevent negative values
-      }
+    if (keys.missile) {
+      weapons.handleMissileShoot(currentTime, carPositionRef.current, carRotationRef.current, speedRef.current)
     }
     if (isBoosted && currentTime > boostEndTime) {
       setIsBoosted(false)
@@ -334,7 +277,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
         }
       } else if (collision.isRocketLauncher) {
         // Rocket launcher collected!
-        setMissilesRemaining(prev => prev + 5) // Add 5 missiles to current count (accumulate)
+        weapons.addMissiles(5) // Add 5 missiles to current count (accumulate)
         setIsColliding(false)
         
         // Remove the collected rocket launcher obstacle
@@ -430,7 +373,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     frameCountRef.current += 1 
     if (frameCountRef.current % 6 === 0) {
       const boostTimeRemaining = isBoosted ? Math.max(0, boostEndTime - currentTime) : 0
-      const spreadShotTimeRemaining = spreadShotActive ? Math.max(0, spreadShotEndTime - currentTime) : 0
+      const weaponState = weapons.getWeaponState(currentTime)
       
       // Update speed display directly
       const speedPercent = Math.round((Math.abs(speedRef.current) / 1.8) * 100)
@@ -455,8 +398,8 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
       // Update missiles display directly
       const missilesElement = document.querySelector('[data-hud="missiles-value"]') as HTMLElement
       if (missilesElement) {
-        missilesElement.textContent = `🚀 ${missilesRemaining}`
-        missilesElement.style.color = missilesRemaining > 0 ? '#ff4400' : '#666666'
+        missilesElement.textContent = `🚀 ${weaponState.missilesRemaining}`
+        missilesElement.style.color = weaponState.missilesRemaining > 0 ? '#ff4400' : '#666666'
       }
       
       // Update boost display directly
@@ -479,14 +422,14 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
       const spreadValueElement = document.querySelector('[data-hud="spread-value"]') as HTMLElement
       const spreadBarElement = document.querySelector('[data-hud="spread-bar"]') as HTMLElement
       if (spreadContainer) {
-        spreadContainer.style.display = spreadShotActive ? 'block' : 'none'
+        spreadContainer.style.display = weaponState.spreadShotActive ? 'block' : 'none'
       }
-      if (spreadValueElement && spreadShotActive) {
-        const spreadSeconds = Math.max(0, Math.ceil(spreadShotTimeRemaining / 1000))
+      if (spreadValueElement && weaponState.spreadShotActive) {
+        const spreadSeconds = Math.max(0, Math.ceil(weaponState.spreadShotTimeRemaining / 1000))
         spreadValueElement.textContent = `${spreadSeconds}s`
       }
-      if (spreadBarElement && spreadShotActive) {
-        spreadBarElement.style.width = `${(spreadShotTimeRemaining / 5000) * 100}%`
+      if (spreadBarElement && weaponState.spreadShotActive) {
+        spreadBarElement.style.width = `${(weaponState.spreadShotTimeRemaining / 5000) * 100}%`
       }
     }
 
@@ -499,14 +442,14 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
   // Visual colors based on state
   const getCarColor = () => {
     if (isColliding) return "#ffffff" // White flash on collision
-    if (spreadShotActive) return "#ffff00" // Yellow when spread shot active
+    if (weapons.spreadShotActive) return "#ffff00" // Yellow when spread shot active
     if (isBoosted) return "#00ff00"   // Green when boosted
     return "#ff0080"                  // Normal pink
   }
   
   const getAccentColor = () => {
     if (isColliding) return "#ffffff" // White flash on collision
-    if (spreadShotActive) return "#ffff80" // Light yellow when spread shot active
+    if (weapons.spreadShotActive) return "#ffff80" // Light yellow when spread shot active
     if (isBoosted) return "#80ff80"   // Light green when boosted
     return "#ff6600"                  // Normal orange
   }
@@ -514,11 +457,11 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
   // Memoized materials to prevent recreation on every render
   const carBodyMaterial = useMemo(() => {
     return <meshStandardMaterial color={getCarColor()} />
-  }, [isColliding, spreadShotActive, isBoosted])
+  }, [isColliding, weapons.spreadShotActive, isBoosted])
 
   const carAccentMaterial = useMemo(() => {
     return <meshStandardMaterial color={getAccentColor()} />
-  }, [isColliding, spreadShotActive, isBoosted])
+  }, [isColliding, weapons.spreadShotActive, isBoosted])
 
   const wheelMaterial = useMemo(() => {
     return <meshStandardMaterial color="#222" />
