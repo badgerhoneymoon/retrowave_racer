@@ -31,11 +31,15 @@ function ObstacleManager({ carPosition, obstacles, onObstaclesUpdate }: Obstacle
   useFrame((_state, delta) => {
     const updated = updateObstacles(obstacles, carPosition.z, delta)
     
+    // Check if we have moving obstacles that need position updates
+    const hasMovingCars = obstacles.some(o => o.type === 'car' && o.velocity !== undefined)
+    
     // Use dirty flag instead of expensive array comparison
     const carMovedSignificantly = Math.abs(carPosition.z - lastCarZRef.current) > 10
     const lengthChanged = updated.length !== lastUpdateLengthRef.current
     
-    if (lengthChanged || carMovedSignificantly) {
+    // Always update if there are moving cars, or if car moved significantly, or length changed
+    if (hasMovingCars || lengthChanged || carMovedSignificantly) {
       onObstaclesUpdate(updated)
       lastUpdateLengthRef.current = updated.length
       lastCarZRef.current = carPosition.z

@@ -6,6 +6,8 @@ import { ObstacleData } from '../utils/collision'
 
 // Re-use across frames to avoid GC churn
 const UP_VECTOR = new Vector3(0, 1, 0)
+const SCRATCH_VECTOR = new Vector3()
+const SCRATCH_DIRECTION = new Vector3()
 
 interface AreaMissileProps {
   position: [number, number, number]
@@ -85,7 +87,7 @@ function AreaMissile({
 
     // Update missile position
     positionRef.current.add(
-      velocityRef.current.clone().multiplyScalar(delta)
+      SCRATCH_VECTOR.copy(velocityRef.current).multiplyScalar(delta)
     )
 
     // Apply very strong gravity for steep descent
@@ -95,9 +97,9 @@ function AreaMissile({
     missileRef.current.position.copy(positionRef.current)
 
     // Rotate missile so its nose points along the current velocity vector
-    const dir = velocityRef.current.clone().normalize()
-    if (dir.lengthSq() > 0.000001) {
-      missileRef.current.quaternion.setFromUnitVectors(UP_VECTOR, dir)
+    SCRATCH_DIRECTION.copy(velocityRef.current).normalize()
+    if (SCRATCH_DIRECTION.lengthSq() > 0.000001) {
+      missileRef.current.quaternion.setFromUnitVectors(UP_VECTOR, SCRATCH_DIRECTION)
     }
 
     // Check for ground collision or target reached
