@@ -1,12 +1,12 @@
-import { useRef, useState, useEffect, memo, useMemo } from 'react'
+import { useRef, useState, useEffect, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Group } from 'three'
 import { ObstacleData, checkCollisions, getObstaclesInRange } from '../utils/collision'
-import { geometryCache } from '../utils/geometryCache'
 import { useCarWeapons } from '../hooks/useCarWeapons'
 import { useCarPhysics } from '../hooks/useCarPhysics'
 import { useCarPowerups } from '../hooks/useCarPowerups'
 import { useCarHUD } from '../hooks/useCarHUD'
+import CarVisual from './CarVisual'
 
 interface CarProps {
   position?: [number, number, number]
@@ -262,65 +262,14 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     // }
   })
 
-  // Visual colors based on state
-  const getCarColor = () => {
-    if (isColliding) return "#ffffff" // White flash on collision
-    if (weapons.spreadShotActive) return "#ffff00" // Yellow when spread shot active
-    if (powerups.isBoosted) return "#00ff00"   // Green when boosted
-    return "#ff0080"                  // Normal pink
-  }
-  
-  const getAccentColor = () => {
-    if (isColliding) return "#ffffff" // White flash on collision
-    if (weapons.spreadShotActive) return "#ffff80" // Light yellow when spread shot active
-    if (powerups.isBoosted) return "#80ff80"   // Light green when boosted
-    return "#ff6600"                  // Normal orange
-  }
-
-  // Memoized materials to prevent recreation on every render
-  const carBodyMaterial = useMemo(() => {
-    return <meshStandardMaterial color={getCarColor()} />
-  }, [isColliding, weapons.spreadShotActive, powerups.isBoosted])
-
-  const carAccentMaterial = useMemo(() => {
-    return <meshStandardMaterial color={getAccentColor()} />
-  }, [isColliding, weapons.spreadShotActive, powerups.isBoosted])
-
-  const wheelMaterial = useMemo(() => {
-    return <meshStandardMaterial color="#222" />
-  }, [])
-
-  const windshieldMaterial = useMemo(() => {
-    return <meshStandardMaterial color="#00ffff" transparent opacity={0.7} />
-  }, [])
-
   return (
-    <group ref={carRef} position={position}>
-      <mesh position={[0, 0.5, 0]} geometry={geometryCache.getGeometry('car-body')}>
-        {carBodyMaterial}
-      </mesh>
-      
-      <mesh position={[0, 0.2, 0]} geometry={geometryCache.getGeometry('car-accent')}>
-        {carAccentMaterial}
-      </mesh>
-      
-      <mesh position={[-0.7, 0, 1.3]} geometry={geometryCache.getGeometry('car-wheel')}>
-        {wheelMaterial}
-      </mesh>
-      <mesh position={[0.7, 0, 1.3]} geometry={geometryCache.getGeometry('car-wheel')}>
-        {wheelMaterial}
-      </mesh>
-      <mesh position={[-0.7, 0, -1.3]} geometry={geometryCache.getGeometry('car-wheel')}>
-        {wheelMaterial}
-      </mesh>
-      <mesh position={[0.7, 0, -1.3]} geometry={geometryCache.getGeometry('car-wheel')}>
-        {wheelMaterial}
-      </mesh>
-      
-      <mesh position={[0, 0.9, 0.5]} geometry={geometryCache.getGeometry('car-windshield')}>
-        {windshieldMaterial}
-      </mesh>
-    </group>
+    <CarVisual 
+      ref={carRef}
+      position={position}
+      isColliding={isColliding}
+      spreadShotActive={weapons.spreadShotActive}
+      isBoosted={powerups.isBoosted}
+    />
   )
 }
 

@@ -26,11 +26,11 @@ export function useCarWeapons({ score, onShoot, onSpreadShoot, onMissileShoot }:
 
   // Handle spread shot activation based on score
   const updateSpreadShot = (currentTime: number) => {
-    // Activate spread shot every 1000 points
-    if (score >= lastSpreadShotScore + 1000 && !spreadShotActive) {
+    // Activate spread shot every 500 points
+    if (score >= lastSpreadShotScore + 500 && !spreadShotActive) {
       setSpreadShotActive(true)
       setSpreadShotEndTime(currentTime + 5000) // 5 seconds duration
-      setLastSpreadShotScore(Math.floor(score / 1000) * 1000) // Set to the last 1000 threshold reached
+      setLastSpreadShotScore(Math.floor(score / 500) * 500) // Set to the last 500 threshold reached
     }
 
     // Deactivate spread shot when time expires
@@ -52,8 +52,11 @@ export function useCarWeapons({ score, onShoot, onSpreadShoot, onMissileShoot }:
       // Spread shot mode: much longer cooldown between bursts (800ms)
       const spreadShotCooldown = 800
       if (currentTime - lastShotTime > spreadShotCooldown) {
-        // Fire 8 projectiles in a fan pattern
-        const spreadAngles = [-0.6, -0.4, -0.2, -0.1, 0.1, 0.2, 0.4, 0.6]
+        // Fire 8 projectiles in an evenly-spaced fan pattern
+        const numShots = 8
+        const maxOffset = 0.6 // radians; maintain previous spread limits
+        const step = (maxOffset * 2) / (numShots - 1)
+        const spreadAngles = Array.from({ length: numShots }, (_, i) => -maxOffset + i * step)
         const shots = spreadAngles.map(angleOffset => ({
           position: startPosition,
           angle: carRotation + angleOffset,
