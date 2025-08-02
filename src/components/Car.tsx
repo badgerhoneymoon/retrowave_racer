@@ -16,9 +16,10 @@ interface CarProps {
   onSpreadShoot?: (shots: Array<{ position: [number, number, number], angle: number, carVelocity: number }>) => void
   score?: number
   onScoreUpdate?: (newScore: number) => void
+  onEnemyCarBounce?: (obstacleId: string, newVelocity: number, bounceDistance: number) => void
 }
 
-function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacleCollected, onHUDUpdate, onRewardCollected, onShoot, onSpreadShoot, score = 0, onScoreUpdate }: CarProps) {
+function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacleCollected, onHUDUpdate, onRewardCollected, onShoot, onSpreadShoot, score = 0, onScoreUpdate, onEnemyCarBounce }: CarProps) {
   const carRef = useRef<Group>(null)
   // Convert to refs to avoid React re-renders every frame
   const carPositionRef = useRef({ x: 0, z: 0 })
@@ -257,7 +258,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
       
     // Check for collisions at new position
     const nearbyObstacles = getObstaclesInRange(obstacles, newX, newZ, 10)
-    const collision = checkCollisions(newX, newZ, nearbyObstacles)
+    const collision = checkCollisions(newX, newZ, nearbyObstacles, speedRef.current)
     
     if (collision.hit) {
       if (collision.isBoost) {
@@ -312,6 +313,15 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
         
         const currentSpeed = Math.abs(speedRef.current)
         const speedThreshold = 0.05 // No bounce below this speed
+        
+        // Handle enemy car bounce if collision data includes it
+        if (collision.enemyCarBounce && onEnemyCarBounce && collision.obstacle) {
+          onEnemyCarBounce(
+            collision.obstacle.id, 
+            collision.enemyCarBounce.newVelocity, 
+            collision.enemyCarBounce.bounceDistance
+          )
+        }
         
         if (currentSpeed < speedThreshold) {
           // Very slow collision - just stop, no bounce

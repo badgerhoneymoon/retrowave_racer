@@ -10,6 +10,10 @@ export interface ObstacleData {
   x: number
   z: number
   type: 'reward' | 'cone' | 'car'
+  velocity?: number // Z-axis velocity for moving cars (positive = towards camera, negative = away)
+  lane?: 'left' | 'right' // Lane assignment for cars
+  originalVelocity?: number // Original velocity before bounce for recovery
+  bounceRecoveryTime?: number // Timestamp when car should recover from bounce
 }
 
 export interface CollisionResult {
@@ -17,6 +21,10 @@ export interface CollisionResult {
   obstacle?: ObstacleData
   isBoost?: boolean
   isReward?: boolean
+  enemyCarBounce?: {
+    newVelocity: number
+    bounceDistance: number
+  }
 }
 
 // Get bounding box for car (2x4 units)
@@ -84,7 +92,8 @@ export const getObstaclesInRange = (
 export const checkCollisions = (
   carX: number, 
   carZ: number, 
-  obstacles: ObstacleData[]
+  obstacles: ObstacleData[],
+  carSpeed: number = 0
 ): CollisionResult => {
   const carBounds = getCarBounds(carX, carZ)
   
@@ -94,7 +103,50 @@ export const checkCollisions = (
     if (checkAABBCollision(carBounds, obstacleBounds)) {
       const isBoost = obstacle.type === 'cone' // Cones are boost items
       const isReward = obstacle.type === 'reward' // Rewards are point pickups
-      return { hit: true, obstacle, isBoost, isReward }
+      
+      // Calculate enemy car bounce if it's a car collision
+      let enemyCarBounce: { newVelocity: number; bounceDistance: number } | undefined
+      
+      if (obstacle.type === 'car' && !isBoost && !isReward) {
+        const enemyVelocity = obstacle.velocity || 0
+        
+        // Convert player speed (forward +Z speed is positive) to world Z velocity (negative Z means forward in the scene)
+        // Hence multiply by -60 so that a player driving forward has a NEGATIVE Z velocity like same-direction traffic.
+        const playerVelocity = -carSpeed * 60
+        
+        // Determine collision type - but with MUCH simpler logic
+        const movingSameDirection = (playerVelocity < 0 && enemyVelocity < 0) || (playerVelocity > 0 && enemyVelocity > 0)
+        const playerFaster = Math.abs(playerVelocity) > Math.abs(enemyVelocity)
+        
+        if (Math.abs(playerVelocity) > 3) {  // Only bounce if player has significant speed
+          if (movingSameDirection && playerFaster) {
+            // Rear-end collision: use **relative speed** between the two cars so a bigger speed difference ⇒ bigger shove.
+            const relativeSpeed = Math.abs(playerVelocity - enemyVelocity)
+            const pushDistance  = Math.min(relativeSpeed * 0.2, 15)
+            const velocityBoost = Math.min(relativeSpeed * 0.04, 5)
+
+            // Increase the enemy speed in its own travel direction so it pulls away.
+            const newVelocity = enemyVelocity < 0
+              ? enemyVelocity - velocityBoost
+              : enemyVelocity + velocityBoost
+
+            // Push further along enemy's travel direction.
+            const bounceDistance = enemyVelocity < 0 ? -pushDistance : pushDistance
+
+            enemyCarBounce = { newVelocity, bounceDistance }
+          } else {
+            // Head-on / crossing collision – use combined speeds for a beefier hit.
+            const relativeSpeed  = Math.abs(playerVelocity) + Math.abs(enemyVelocity)
+            const bounceIntensity = Math.min(relativeSpeed * 0.25, 25)
+            const newVelocity     = enemyVelocity * 0.8  // lose some speed but keep direction
+            const bounceDistance  = enemyVelocity > 0 ? -bounceIntensity : bounceIntensity
+            
+            enemyCarBounce = { newVelocity, bounceDistance }
+          }
+        }
+      }
+      
+      return { hit: true, obstacle, isBoost, isReward, enemyCarBounce }
     }
   }
   

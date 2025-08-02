@@ -24,12 +24,15 @@ function ObstacleManager({ carPosition, obstacles, onObstaclesUpdate }: Obstacle
   }, []) // Only run on mount to avoid regenerating obstacles constantly
 
   // Update obstacles each frame
-  useFrame(() => {
-    const updated = updateObstacles(obstacles, carPosition.z)
+  useFrame((_state, delta) => {
+    const updated = updateObstacles(obstacles, carPosition.z, delta)
     
-    // Only update parent if obstacles changed
+    // Only update parent if obstacles changed or moved
     if (updated.length !== obstacles.length || 
-        updated.some((obs, i) => obstacles[i]?.id !== obs.id)) {
+        updated.some((obs, i) => 
+          obstacles[i]?.id !== obs.id || 
+          Math.abs(obstacles[i]?.z - obs.z) > 0.1 // Check if position changed significantly
+        )) {
       onObstaclesUpdate(updated)
     }
   })

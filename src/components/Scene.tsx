@@ -132,6 +132,21 @@ function Scene({ onHUDUpdate }: SceneProps) {
     })
   }, [])
 
+  const handleEnemyCarBounce = useCallback((obstacleId: string, newVelocity: number, bounceDistance: number) => {
+    setObstacles(prev => prev.map(obstacle => {
+      if (obstacle.id === obstacleId && obstacle.type === 'car') {
+        const recoveryTime = Date.now() + 2000 // Recover after 2 seconds
+        return {
+          ...obstacle,
+          velocity: newVelocity,
+          z: obstacle.z + bounceDistance, // Apply immediate bounce displacement
+          bounceRecoveryTime: recoveryTime // Set recovery time
+        }
+      }
+      return obstacle
+    }))
+  }, [])
+
   return (
     <>
       <ambientLight intensity={0.3} />
@@ -164,6 +179,7 @@ function Scene({ onHUDUpdate }: SceneProps) {
         onSpreadShoot={handleSpreadShoot}
         score={score}
         onScoreUpdate={setScore}
+        onEnemyCarBounce={handleEnemyCarBounce}
       />
       
       {/* Render explosion effects */}
