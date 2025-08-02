@@ -134,28 +134,7 @@ function MissileExplosion({ position, onComplete }: MissileExplosionProps) {
         </group>
       ))}
       
-      {/* Explosion lighting - much brighter and wider */}
-      <pointLight 
-        intensity={25} 
-        distance={40} 
-        color="#ff4400" 
-        decay={1}
-      />
-      <pointLight 
-        intensity={15} 
-        distance={50} 
-        color="#ffff00" 
-        decay={0.5}
-      />
-      
-      {/* Ground marker light */}
-      <pointLight 
-        position={[0, -1, 0]}
-        intensity={20} 
-        distance={30} 
-        color="#ff0000" 
-        decay={1}
-      />
+
     </group>
   )
 }

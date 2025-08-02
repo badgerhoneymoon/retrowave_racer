@@ -31,6 +31,7 @@ function AreaMissile({
   const lifeTimeRef = useRef(0) // Track total time in flight to catch silent failures
   const positionRef = useRef(new Vector3(...position))
   const velocityRef = useRef(new Vector3())
+
   
   useEffect(() => {
     // --- Improved ballistic solution ---
@@ -51,6 +52,8 @@ function AreaMissile({
     const carForwardSpeed = Math.abs(carVelocity) * 60
     // Guarantee the missile is always faster than the player by a clear margin
     const horizontalSpeed = carForwardSpeed + (desiredRange / flightTime) + 15
+
+
 
     console.log('Missile launched with:', {
       horizontalSpeed,
@@ -131,16 +134,18 @@ function AreaMissile({
     // Check if missile is way outside visible bounds (debugging)
     if (lifeTimeRef.current > 0.5) {
       const currentPos = positionRef.current
-      if (Math.abs(currentPos.x) > 50 || Math.abs(currentPos.z) > 200 || currentPos.y > 20 || currentPos.y < -10) {
-        console.warn('⚠️ Missile outside typical bounds:', {
+      // X-axis bounds keep missiles within road width; ignore large Z because game world scrolls endlessly.
+      if (Math.abs(currentPos.x) > 50 || currentPos.y > 20 || currentPos.y < -10) {
+        // debug boundary log (can be silenced if still noisy)
+        console.warn('⚠️ Missile outside X/Y bounds:', {
           x: currentPos.x,
           y: currentPos.y,
           z: currentPos.z,
           distance: distanceTraveled
         })
 
-        // If it gets well beyond the visible world, expire it immediately
-        if (Math.abs(currentPos.x) > 80 || Math.abs(currentPos.z) > 300 || currentPos.y < -20) {
+              // If it gets well beyond the visible X range, expire it immediately
+      if (Math.abs(currentPos.x) > 80 || currentPos.y < -20) {
           onExpire(missileId)
           return
         }
@@ -148,11 +153,6 @@ function AreaMissile({
     }
     
     // (debug) console.log('Missile distance:', distanceTraveled, 'Y position:', positionRef.current.y)
-
-    if (distanceTraveled > 120) {
-      console.log('Missile expired due to distance limit')
-      onExpire(missileId)
-    }
   })
 
   const explodeMissile = () => {
