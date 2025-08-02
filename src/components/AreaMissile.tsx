@@ -55,18 +55,6 @@ function AreaMissile({
     // Guarantee the missile is always faster than the player by a clear margin
     const horizontalSpeed = carForwardSpeed + (desiredRange / flightTime) + 15
 
-
-
-    console.log('Missile launched with:', {
-      horizontalSpeed,
-      verticalSpeed,
-      flightTime,
-      carVelocity,
-      startPosition: position
-    })
-    
-
-    
     velocityRef.current.set(
       -Math.sin(angle) * horizontalSpeed,
       verticalSpeed, // Proper initial upward velocity for parabola
@@ -160,7 +148,6 @@ function AreaMissile({
   const explodeMissile = () => {
     if (isExploded) return
     
-    console.log('Missile exploding at position:', positionRef.current.x, positionRef.current.y, positionRef.current.z)
     setIsExploded(true)
     
     // Find all obstacles within explosion radius
