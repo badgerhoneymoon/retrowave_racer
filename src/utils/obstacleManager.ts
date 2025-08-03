@@ -72,8 +72,14 @@ export const generateObstaclesForRange = (
         velocity = -20 // Same direction traffic (negative = away from camera)
         lane = 'right'
       }
+    } else if (type === 'rocket_launcher') {
+      // Rocket launchers only spawn on left side of road
+      const leftSidePositions = [-12, -6, 0] // Left lanes + center
+      const laneIndex = Math.floor(Math.random() * leftSidePositions.length)
+      x = leftSidePositions[laneIndex]
+      // Static obstacles don't have velocity
     } else {
-      // Rewards, cones, and rocket launchers can spawn in any lane including center
+      // Rewards and cones can spawn in any lane including center
       const allPositions = [-12, -6, 0, 6, 12]
       const laneIndex = Math.floor(Math.random() * allPositions.length)
       x = allPositions[laneIndex]

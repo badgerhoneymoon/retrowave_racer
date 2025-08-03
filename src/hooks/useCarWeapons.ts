@@ -49,12 +49,12 @@ export function useCarWeapons({ score, onShoot, onSpreadShoot, onMissileShoot }:
     const startPosition: [number, number, number] = [carPosition.x, 1, carPosition.z]
     
     if (spreadShotActive && onSpreadShoot) {
-      // Spread shot mode: much longer cooldown between bursts (800ms)
-      const spreadShotCooldown = 800
+      // Spread shot mode: reduced cooldown between bursts (400ms)
+      const spreadShotCooldown = 400
       if (currentTime - lastShotTime > spreadShotCooldown) {
         // Fire 8 projectiles in an evenly-spaced fan pattern
         const numShots = 8
-        const maxOffset = 0.6 // radians; maintain previous spread limits
+        const maxOffset = 0.3 // radians; narrower cone for tighter grouping
         const step = (maxOffset * 2) / (numShots - 1)
         const spreadAngles = Array.from({ length: numShots }, (_, i) => -maxOffset + i * step)
         const shots = spreadAngles.map(angleOffset => ({
