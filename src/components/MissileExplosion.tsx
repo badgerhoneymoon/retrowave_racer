@@ -8,6 +8,10 @@ interface MissileExplosionProps {
 }
 
 function MissileExplosion({ position, onComplete }: MissileExplosionProps) {
+  // Temporary debug toggles
+  const SHOW_MAIN_SPHERE = true;
+  const SHOW_SHOCKWAVE = false;
+  const SHOW_PARTICLES = false;
   const explosionRef = useRef<Group>(null)
   const timeRef = useRef(0)
   const particlesRef = useRef<Group[]>([])
@@ -78,6 +82,7 @@ function MissileExplosion({ position, onComplete }: MissileExplosionProps) {
   return (
     <group position={position} frustumCulled={false}>
       {/* Main explosion sphere */}
+      {SHOW_MAIN_SPHERE && (
       <group ref={explosionRef} frustumCulled={false}>
         <mesh frustumCulled={false}>
           <sphereGeometry args={[1, 16, 16]} />
@@ -89,9 +94,10 @@ function MissileExplosion({ position, onComplete }: MissileExplosionProps) {
             opacity={0.8}
           />
         </mesh>
-      </group>
+      </group>)}
       
       {/* Shockwave ring */}
+      {SHOW_SHOCKWAVE && (
       <group ref={shockwaveRef}>
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.8, 1.2, 32]} />
@@ -103,7 +109,7 @@ function MissileExplosion({ position, onComplete }: MissileExplosionProps) {
             opacity={0.4}
           />
         </mesh>
-      </group>
+      </group>)}
       
       {/* Secondary explosion core */}
       <mesh>
@@ -118,7 +124,7 @@ function MissileExplosion({ position, onComplete }: MissileExplosionProps) {
       </mesh>
       
       {/* Explosion particles */}
-      {Array.from({ length: 12 }, (_, i) => (
+      {SHOW_PARTICLES && Array.from({ length: 12 }, (_, i) => (
         <group 
           key={i} 
           ref={(ref) => {

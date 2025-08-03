@@ -28,9 +28,18 @@ function AreaMissile({
   onHit, 
   onExpire 
 }: AreaMissileProps) {
+  // Toggle to quickly enable / disable the visual trail for debugging
+  const ENABLE_TRAIL = true;
   const missileRef = useRef<Group>(null)
   const [isExploded, setIsExploded] = useState(false)
-  const [trailParticles, setTrailParticles] = useState<Array<{ pos: Vector3, opacity: number }>>([])
+  interface TrailParticle {
+  id: number
+  pos: Vector3
+  opacity: number
+}
+
+  const [trailParticles, setTrailParticles] = useState<TrailParticle[]>([])
+  const particleIdRef = useRef(0)
   const lifeTimeRef = useRef(0) // Track total time in flight to catch silent failures
   const positionRef = useRef(new Vector3(...position))
   const velocityRef = useRef(new Vector3())
@@ -94,16 +103,18 @@ function AreaMissile({
     missileRef.current.position.copy(positionRef.current)
 
     // Add trail particles every few frames
-    if (frameCountRef.current % 3 === 0) {
+    if (ENABLE_TRAIL && frameCountRef.current % 3 === 0 && positionRef.current.y > 2.5) {
       setTrailParticles(prev => {
-        const newParticles = [
-          { pos: positionRef.current.clone(), opacity: 1.0 },
-          ...prev.slice(0, 15) // Keep last 15 particles
-        ]
-        // Fade out older particles
+        const newParticle: TrailParticle = {
+          id: particleIdRef.current++,
+          pos: positionRef.current.clone(),
+          opacity: 1.0,
+        }
+        const newParticles = [newParticle, ...prev.slice(0, 15)] // Keep last 15 particles
+        // Fade out older particles without mutating position refs
         return newParticles.map((p, i) => ({
           ...p,
-          opacity: 1.0 - (i / 16)
+          opacity: 1.0 - i / 16,
         }))
       })
     }
@@ -118,6 +129,8 @@ function AreaMissile({
     if (positionRef.current.y <= 1.0) { // Higher ground detection
       // Force explosion position to ground level
       positionRef.current.y = 1.0
+      // Sync the actual mesh position so we don't render one extra frame underground
+      missileRef.current.position.y = 1.0
       explodeMissile()
       return
     }
@@ -172,7 +185,14 @@ function AreaMissile({
   const explodeMissile = () => {
     if (isExploded) return
     
+    // Instantly hide the missile mesh to avoid a lingering frame
+    if (missileRef.current) {
+      missileRef.current.visible = false
+    }
+
     setIsExploded(true)
+    // Immediately clear any remaining trail particles to avoid artifacts
+    setTrailParticles([])
     
     // Find all obstacles within explosion radius
     // Match damage radius to visual blast (MissileExplosion grows to ~12 units)
@@ -204,8 +224,8 @@ function AreaMissile({
   return (
     <>
       {/* Dynamic trail particles */}
-      {trailParticles.map((particle, i) => (
-        <mesh key={i} position={particle.pos} frustumCulled={false}>
+      {ENABLE_TRAIL && trailParticles.map((particle) => (
+        <mesh key={particle.id} position={particle.pos} frustumCulled={false}>
           <sphereGeometry args={[0.2 * particle.opacity]} />
           <meshStandardMaterial
             color="#ff6600"
