@@ -44,13 +44,16 @@ function PlasmaProjectile({ position, angle, carVelocity, onHit, onExpire, proje
     const dz = projectileRef.current.position.z - position[2]
     const distanceTraveled = Math.sqrt(dx * dx + dz * dz)
     
-    if (distanceTraveled > maxDistance) {
+    // Also check if projectile is way out of bounds (safety net)
+    const currentPos = projectileRef.current.position
+    const tooFarOut = Math.abs(currentPos.x) > 100 || Math.abs(currentPos.z - position[2]) > maxDistance
+    
+    if (distanceTraveled > maxDistance || tooFarOut) {
       onExpire(projectileId)
       return
     }
 
     // Check collision with blue car obstacles only
-    const currentPos = projectileRef.current.position
     for (const obstacle of obstacles) {
       if (obstacle.type === 'car') { // Only blue cars can be destroyed
         const dx = Math.abs(currentPos.x - obstacle.x)
