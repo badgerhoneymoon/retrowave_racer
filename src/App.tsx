@@ -1,6 +1,7 @@
 import { Canvas } from '@react-three/fiber'
 import Scene from './components/Scene'
 import HUD from './components/HUD'
+import ControlHints from './components/ControlHints'
 
 function App() {
 
@@ -14,6 +15,7 @@ function App() {
         <Scene />
       </Canvas>
       <HUD />
+      <ControlHints />
     </div>
   )
 }

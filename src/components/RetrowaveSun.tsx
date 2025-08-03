@@ -67,7 +67,7 @@ function RetrowaveSun({ carZ = 0 }: RetrowaveSunProps) {
   return (
     <group ref={sunRef}>
       <mesh>
-        <circleGeometry args={[12, 64]} />
+        <circleGeometry args={[20, 64]} />
         {/* eslint-disable-next-line react/no-unknown-property */}
         <meshBasicMaterial map={texture} transparent toneMapped={false} />
       </mesh>

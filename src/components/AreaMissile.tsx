@@ -30,12 +30,19 @@ function AreaMissile({
 }: AreaMissileProps) {
   const missileRef = useRef<Group>(null)
   const [isExploded, setIsExploded] = useState(false)
+  const [trailParticles, setTrailParticles] = useState<Array<{ pos: Vector3, opacity: number }>>([])
   const lifeTimeRef = useRef(0) // Track total time in flight to catch silent failures
   const positionRef = useRef(new Vector3(...position))
   const velocityRef = useRef(new Vector3())
+  const frameCountRef = useRef(0)
 
   
   useEffect(() => {
+    // Initialize missile position
+    if (missileRef.current) {
+      missileRef.current.position.set(...position)
+    }
+    
     // --- Improved ballistic solution ---
     // We want the missile to land roughly 45 units in front of the car and
     // also compensate a little for the car velocity so it never lands on top
@@ -60,7 +67,7 @@ function AreaMissile({
       verticalSpeed, // Proper initial upward velocity for parabola
       -Math.cos(angle) * horizontalSpeed
     )
-  }, [angle, carVelocity])
+  }, [angle, carVelocity, position])
 
   useFrame((_, delta) => {
     // Fail-safe: make sure a missile never silently hangs around
@@ -73,6 +80,8 @@ function AreaMissile({
 
     if (isExploded || !missileRef.current) return
 
+    frameCountRef.current++
+
     // Update missile position
     positionRef.current.add(
       SCRATCH_VECTOR.copy(velocityRef.current).multiplyScalar(delta)
@@ -83,6 +92,21 @@ function AreaMissile({
 
     // Update mesh position
     missileRef.current.position.copy(positionRef.current)
+
+    // Add trail particles every few frames
+    if (frameCountRef.current % 3 === 0) {
+      setTrailParticles(prev => {
+        const newParticles = [
+          { pos: positionRef.current.clone(), opacity: 1.0 },
+          ...prev.slice(0, 15) // Keep last 15 particles
+        ]
+        // Fade out older particles
+        return newParticles.map((p, i) => ({
+          ...p,
+          opacity: 1.0 - (i / 16)
+        }))
+      })
+    }
 
     // Rotate missile so its nose points along the current velocity vector
     SCRATCH_DIRECTION.copy(velocityRef.current).normalize()
@@ -178,7 +202,22 @@ function AreaMissile({
   if (isExploded) return null
 
   return (
-    <group ref={missileRef} position={position} frustumCulled={false}>
+    <>
+      {/* Dynamic trail particles */}
+      {trailParticles.map((particle, i) => (
+        <mesh key={i} position={particle.pos} frustumCulled={false}>
+          <sphereGeometry args={[0.2 * particle.opacity]} />
+          <meshStandardMaterial
+            color="#ff6600"
+            emissive="#ff4400"
+            emissiveIntensity={2.0 * particle.opacity}
+            transparent
+            opacity={particle.opacity * 0.8}
+          />
+        </mesh>
+      ))}
+      
+      <group ref={missileRef} frustumCulled={false}>
       {/* Main missile body */}
       <mesh position={[0, 0, 0]} frustumCulled={false}>
         <cylinderGeometry args={[0.15, 0.3, 1.5]} />
@@ -220,21 +259,8 @@ function AreaMissile({
           opacity={0.8}
         />
       </mesh>
-      
-      {/* Trail effect */}
-      <mesh position={[0, -1.5, 0]} frustumCulled={false}>
-        <sphereGeometry args={[0.15]} />
-        <meshStandardMaterial 
-          color="#ff4400" 
-          emissive="#ff4400" 
-          emissiveIntensity={1.0}
-          transparent
-          opacity={0.6}
-        />
-      </mesh>
-      
-
     </group>
+    </>
   )
 }
 
