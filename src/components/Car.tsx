@@ -7,6 +7,7 @@ import { useCarPhysics } from '../hooks/useCarPhysics'
 import { useCarPowerups } from '../hooks/useCarPowerups'
 import { useCarHUD } from '../hooks/useCarHUD'
 import CarVisual from './CarVisual'
+import { toggleSound } from '../utils/audio'
 
 interface CarProps {
   position?: [number, number, number]
@@ -52,6 +53,8 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // Ignore auto-repeat to prevent retriggering actions like audio start
+      if (event.repeat) return
       switch (event.code) {
         case 'ArrowLeft':
         case 'KeyA':
@@ -71,6 +74,9 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
           break
         case 'Space':
           keysRef.current.shoot = true
+          break
+        case 'KeyR':
+          toggleSound()
           break
         case 'KeyM':
           keysRef.current.missile = true

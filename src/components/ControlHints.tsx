@@ -120,6 +120,37 @@ function ControlHints() {
           ROCKETS
         </span>
       </div>
+
+      {/* Sound Toggle */}
+      <div style={{ 
+        marginTop: '10px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '12px'
+      }}>
+        <span style={{
+          backgroundColor: 'rgba(0, 255, 128, 0.12)',
+          border: '1px solid #00ff80',
+          borderRadius: '4px',
+          padding: '3px 8px',
+          fontSize: '14px',
+          fontWeight: 'bold',
+          color: '#00ffbf',
+          textShadow: '0 0 3px rgba(0, 255, 191, 0.4)',
+          minWidth: '50px',
+          textAlign: 'center'
+        }}>
+          R
+        </span>
+        <span style={{
+          color: '#00ffbf',
+          fontSize: '15px',
+          fontWeight: 'bold',
+          textShadow: '0 0 3px rgba(0, 255, 191, 0.4)'
+        }}>
+          SOUND
+        </span>
+      </div>
     </div>
   )
 }

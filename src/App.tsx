@@ -1,10 +1,15 @@
 import { Canvas } from '@react-three/fiber'
+import { useEffect } from 'react'
+import { initAutoStartOnUserGesture } from './utils/audio'
 import Scene from './components/Scene'
 import HUD from './components/HUD'
 import ControlHints from './components/ControlHints'
 
 function App() {
-
+  useEffect(() => {
+    // Register a one-time user-gesture handler to start audio, not tied to movement keys
+    initAutoStartOnUserGesture({ targetVolume: 0.4, durationMs: 800 })
+  }, [])
   return (
     <div style={{ width: '100vw', height: '100vh' }}>
       <Canvas
