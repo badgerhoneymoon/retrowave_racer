@@ -7,11 +7,11 @@ let targetVolumeGlobal: number = 0.4
 
 // Static playlist sourced from public/ost
 const PLAYLIST: string[] = [
-  "/ost/000_Full_Mix_110bpm_Bb_Minor_-_80SCYBERPUNK_Zenhiser.wav",
-  "/ost/000_Full__Mix_122bpm_Bb_Minor_-_80SCYBERPUNK_Zenhiser.wav",
-  "/ost/000_Full_Mix_119bpm_D_Minor_-_80SCYBERPUNK_Zenhiser.wav",
-  "/ost/000_Full_Mix_128bpm_Bb_Minor_-_80SCYBERPUNK_Zenhiser.wav",
-  "/ost/000_Full_Mix_130bpm_D_Minor_-_80SCYBERPUNK_Zenhiser.wav",
+  "/ost/000_Full_Mix_110bpm_Bb_Minor_-_80SCYBERPUNK_Zenhiser.mp3",
+  "/ost/000_Full__Mix_122bpm_Bb_Minor_-_80SCYBERPUNK_Zenhiser.mp3",
+  "/ost/000_Full_Mix_119bpm_D_Minor_-_80SCYBERPUNK_Zenhiser.mp3",
+  "/ost/000_Full_Mix_128bpm_Bb_Minor_-_80SCYBERPUNK_Zenhiser.mp3",
+  "/ost/000_Full_Mix_130bpm_D_Minor_-_80SCYBERPUNK_Zenhiser.mp3",
 ]
 
 function clearFadeInterval() {
