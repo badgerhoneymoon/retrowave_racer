@@ -1,13 +1,49 @@
 import { useRef, useEffect, useState, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Group, Vector3 } from 'three'
+import {
+  Group,
+  Vector3,
+  CylinderGeometry,
+  ConeGeometry,
+  BoxGeometry,
+  SphereGeometry,
+  MeshStandardMaterial,
+} from 'three'
 
 import { ObstacleData } from '../utils/collision'
+import MissileTrail from './MissileTrail'
 
 // Re-use across frames to avoid GC churn
 const UP_VECTOR = new Vector3(0, 1, 0)
 const SCRATCH_VECTOR = new Vector3()
 const SCRATCH_DIRECTION = new Vector3()
+// Pre-create geometries and materials to avoid runtime allocations and shader compile hitches
+const MISSILE_BODY_GEO = new CylinderGeometry(0.15, 0.3, 1.5)
+const MISSILE_BODY_MAT = new MeshStandardMaterial({
+  color: '#ff0040',
+  emissive: '#ff0040',
+  emissiveIntensity: 0.3,
+})
+
+const MISSILE_NOSE_GEO = new ConeGeometry(0.15, 0.5)
+const MISSILE_NOSE_MAT = new MeshStandardMaterial({
+  color: '#ffff00',
+  emissive: '#ffff00',
+  emissiveIntensity: 0.5,
+})
+
+const FIN_GEO = new BoxGeometry(0.1, 0.4, 0.05)
+const FIN_MAT = new MeshStandardMaterial({ color: '#ff6600' })
+
+const THRUSTER_GEO = new SphereGeometry(0.3)
+const THRUSTER_MAT = new MeshStandardMaterial({
+  color: '#00ffff',
+  emissive: '#00ffff',
+  emissiveIntensity: 1.5,
+  transparent: true,
+  opacity: 0.8,
+})
+
 
 interface AreaMissileProps {
   position: [number, number, number]
@@ -32,14 +68,6 @@ function AreaMissile({
   const ENABLE_TRAIL = true;
   const missileRef = useRef<Group>(null)
   const [isExploded, setIsExploded] = useState(false)
-  interface TrailParticle {
-  id: number
-  pos: Vector3
-  opacity: number
-}
-
-  const [trailParticles, setTrailParticles] = useState<TrailParticle[]>([])
-  const particleIdRef = useRef(0)
   const lifeTimeRef = useRef(0) // Track total time in flight to catch silent failures
   const positionRef = useRef(new Vector3(...position))
   const velocityRef = useRef(new Vector3())
@@ -82,7 +110,6 @@ function AreaMissile({
     // Fail-safe: make sure a missile never silently hangs around
     lifeTimeRef.current += delta
     if (lifeTimeRef.current > 8 && !isExploded) {
-      console.warn('⏰ Failsafe missile timeout – forcing expire', missileId)
       onExpire(missileId)
       return
     }
@@ -102,22 +129,7 @@ function AreaMissile({
     // Update mesh position
     missileRef.current.position.copy(positionRef.current)
 
-    // Add trail particles every few frames
-    if (ENABLE_TRAIL && frameCountRef.current % 3 === 0 && positionRef.current.y > 2.5) {
-      setTrailParticles(prev => {
-        const newParticle: TrailParticle = {
-          id: particleIdRef.current++,
-          pos: positionRef.current.clone(),
-          opacity: 1.0,
-        }
-        const newParticles = [newParticle, ...prev.slice(0, 15)] // Keep last 15 particles
-        // Fade out older particles without mutating position refs
-        return newParticles.map((p, i) => ({
-          ...p,
-          opacity: 1.0 - i / 16,
-        }))
-      })
-    }
+    // Trail handled by MissileTrail component without React state
 
     // Rotate missile so its nose points along the current velocity vector
     SCRATCH_DIRECTION.copy(velocityRef.current).normalize()
@@ -153,25 +165,14 @@ function AreaMissile({
     // }
 
     // Auto-expire if missile travels too far (reasonable range)
-    const distanceTraveled = Math.sqrt(
-      Math.pow(positionRef.current.x - position[0], 2) +
-      Math.pow(positionRef.current.z - position[2], 2)
-    )
+    // Distance can be re-enabled for debug; avoid computing to reduce work
     
     // Check if missile is way outside visible bounds (debugging)
     if (lifeTimeRef.current > 0.5) {
       const currentPos = positionRef.current
       // X-axis bounds keep missiles within road width; ignore large Z because game world scrolls endlessly.
       if (Math.abs(currentPos.x) > 50 || currentPos.y > 20 || currentPos.y < -10) {
-        // debug boundary log (can be silenced if still noisy)
-        console.warn('⚠️ Missile outside X/Y bounds:', {
-          x: currentPos.x,
-          y: currentPos.y,
-          z: currentPos.z,
-          distance: distanceTraveled
-        })
-
-              // If it gets well beyond the visible X range, expire it immediately
+        // If it gets well beyond the visible X range, expire it immediately
       if (Math.abs(currentPos.x) > 80 || currentPos.y < -20) {
           onExpire(missileId)
           return
@@ -191,8 +192,6 @@ function AreaMissile({
     }
 
     setIsExploded(true)
-    // Immediately clear any remaining trail particles to avoid artifacts
-    setTrailParticles([])
     
     // Find all obstacles within explosion radius
     // Match damage radius to visual blast (MissileExplosion grows to ~12 units)
@@ -223,62 +222,25 @@ function AreaMissile({
 
   return (
     <>
-      {/* Dynamic trail particles */}
-      {ENABLE_TRAIL && trailParticles.map((particle) => (
-        <mesh key={particle.id} position={particle.pos} frustumCulled={false}>
-          <sphereGeometry args={[0.2 * particle.opacity]} />
-          <meshStandardMaterial
-            color="#ff6600"
-            emissive="#ff4400"
-            emissiveIntensity={2.0 * particle.opacity}
-            transparent
-            opacity={particle.opacity * 0.8}
-          />
-        </mesh>
-      ))}
-      
+      {ENABLE_TRAIL && (
+        <MissileTrail
+          missilePosition={positionRef.current}
+          isActive={!isExploded && positionRef.current.y > 2.5}
+        />
+      )}
       <group ref={missileRef} frustumCulled={false}>
       {/* Main missile body */}
-      <mesh position={[0, 0, 0]} frustumCulled={false}>
-        <cylinderGeometry args={[0.15, 0.3, 1.5]} />
-        <meshStandardMaterial 
-          color="#ff0040" 
-          emissive="#ff0040" 
-          emissiveIntensity={0.3}
-        />
-      </mesh>
-      
+      <mesh position={[0, 0, 0]} frustumCulled={false} geometry={MISSILE_BODY_GEO} material={MISSILE_BODY_MAT} />
+
       {/* Missile nose cone */}
-      <mesh position={[0, 0.75, 0]} frustumCulled={false}>
-        <coneGeometry args={[0.15, 0.5]} />
-        <meshStandardMaterial 
-          color="#ffff00" 
-          emissive="#ffff00" 
-          emissiveIntensity={0.5}
-        />
-      </mesh>
-      
+      <mesh position={[0, 0.75, 0]} frustumCulled={false} geometry={MISSILE_NOSE_GEO} material={MISSILE_NOSE_MAT} />
+
       {/* Missile fins */}
-      <mesh position={[0.3, -0.5, 0]} rotation={[0, 0, Math.PI / 4]} frustumCulled={false}>
-        <boxGeometry args={[0.1, 0.4, 0.05]} />
-        <meshStandardMaterial color="#ff6600" />
-      </mesh>
-      <mesh position={[-0.3, -0.5, 0]} rotation={[0, 0, -Math.PI / 4]} frustumCulled={false}>
-        <boxGeometry args={[0.1, 0.4, 0.05]} />
-        <meshStandardMaterial color="#ff6600" />
-      </mesh>
-      
+      <mesh position={[0.3, -0.5, 0]} rotation={[0, 0, Math.PI / 4]} frustumCulled={false} geometry={FIN_GEO} material={FIN_MAT} />
+      <mesh position={[-0.3, -0.5, 0]} rotation={[0, 0, -Math.PI / 4]} frustumCulled={false} geometry={FIN_GEO} material={FIN_MAT} />
+
       {/* Thruster glow */}
-      <mesh position={[0, -1, 0]} frustumCulled={false}>
-        <sphereGeometry args={[0.3]} />
-        <meshStandardMaterial 
-          color="#00ffff" 
-          emissive="#00ffff" 
-          emissiveIntensity={1.5}
-          transparent
-          opacity={0.8}
-        />
-      </mesh>
+      <mesh position={[0, -1, 0]} frustumCulled={false} geometry={THRUSTER_GEO} material={THRUSTER_MAT} />
     </group>
     </>
   )
