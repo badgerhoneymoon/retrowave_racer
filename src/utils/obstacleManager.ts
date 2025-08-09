@@ -50,10 +50,10 @@ export const generateObstaclesForRange = (
       type = 'cone'    // 15% chance - boost items  
     } else if (rand < 0.29) {
       type = 'rocket_launcher'  // 2% chance - rare rocket launcher pickups
-    } else if (rand < 0.50) {
-      type = 'triple_rocket'  // 21% chance - TEMPORARY HIGH RATE FOR TESTING
+    } else if (rand < 0.35) {
+      type = 'triple_rocket'  // 6% chance - triple rocket mode pickups
     } else {
-      type = 'car'     // 50% chance - obstacles to avoid
+      type = 'car'     // 65% chance - obstacles to avoid
     }
     
     // For cars, choose from car lanes; for rewards/cones, use all lanes including center
