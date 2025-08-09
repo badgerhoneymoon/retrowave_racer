@@ -178,6 +178,81 @@ function HUD() {
           </div>
         </div>
 
+      {/* Triple Rocket Display - Center Top Left - Only show when active */}
+      <div data-hud="triple-container" style={{
+          display: 'none',
+        position: 'fixed',
+        top: '30px',
+        left: '30%',
+        zIndex: 1000,
+        fontFamily: 'monospace',
+        fontSize: '18px',
+        textAlign: 'center',
+        color: '#ff6600',
+        textShadow: '0 0 15px #ff6600',
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        border: '2px solid #ff6600',
+        borderRadius: '12px',
+        padding: '12px 20px',
+        boxShadow: '0 0 25px rgba(255, 102, 0, 0.6)',
+        minWidth: '160px'
+      }}>
+          <div style={{ 
+            color: '#ffaa00', 
+            fontSize: '11px', 
+            marginBottom: '4px',
+            textTransform: 'uppercase',
+            letterSpacing: '2px',
+            opacity: 0.8
+          }}>
+            TRIPLE ROCKETS
+          </div>
+          
+          <div data-hud="triple-value" style={{ 
+            fontSize: '22px',
+            fontWeight: 'bold',
+            color: '#ff6600',
+            marginBottom: '6px',
+            textShadow: '0 0 20px #ff6600'
+          }}>
+            🚀🚀🚀 0s
+          </div>
+          
+          {/* Triple Rocket Bar */}
+          <div style={{
+            width: '100%',
+            height: '8px',
+            backgroundColor: 'rgba(0, 0, 0, 0.4)',
+            border: '1px solid #ff6600',
+            borderRadius: '4px',
+            position: 'relative',
+            overflow: 'hidden'
+          }}>
+            <div data-hud="triple-bar" style={{
+              width: '0%',
+              height: '100%',
+              backgroundColor: '#ff6600',
+              boxShadow: '0 0 15px #ff6600',
+              transition: 'all 0.1s ease',
+              borderRadius: '3px'
+            }} />
+          </div>
+
+          {/* Triple Rocket Status Animation */}
+          <div style={{
+            marginTop: '6px',
+            fontSize: '10px',
+            color: '#ff6600',
+            textAlign: 'center',
+            animation: 'pulse 0.8s infinite',
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            textShadow: '0 0 10px #ff6600'
+          }}>
+            ⚡ 3X MODE ⚡
+          </div>
+        </div>
+
       {/* Spread Shot Display - Center Top Right - Only show when active */}
       <div data-hud="spread-container" style={{
           display: 'none',

@@ -7,17 +7,20 @@ interface CarVisualProps {
   isColliding: boolean
   spreadShotActive: boolean
   isBoosted: boolean
+  tripleRocketActive?: boolean
 }
 
 const CarVisual = forwardRef<Group, CarVisualProps>(({ 
   position = [0, 0, 0], 
   isColliding, 
   spreadShotActive, 
-  isBoosted 
+  isBoosted,
+  tripleRocketActive = false 
 }, ref) => {
   // Visual colors based on state
   const getCarColor = () => {
     if (isColliding) return "#ffffff" // White flash on collision
+    if (tripleRocketActive) return "#ff6600" // Orange when triple rocket active
     if (spreadShotActive) return "#ffff00" // Yellow when spread shot active
     if (isBoosted) return "#00ff00"   // Green when boosted
     return "#ff0080"                  // Normal pink
@@ -25,6 +28,7 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
   
   const getAccentColor = () => {
     if (isColliding) return "#ffffff" // White flash on collision
+    if (tripleRocketActive) return "#ff9900" // Bright orange when triple rocket active
     if (spreadShotActive) return "#ffff80" // Light yellow when spread shot active
     if (isBoosted) return "#80ff80"   // Light green when boosted
     return "#ff6600"                  // Normal orange
@@ -33,11 +37,11 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
   // Memoized materials to prevent recreation on every render
   const carBodyMaterial = useMemo(() => {
     return <meshStandardMaterial color={getCarColor()} />
-  }, [isColliding, spreadShotActive, isBoosted])
+  }, [isColliding, spreadShotActive, isBoosted, tripleRocketActive])
 
   const carAccentMaterial = useMemo(() => {
     return <meshStandardMaterial color={getAccentColor()} />
-  }, [isColliding, spreadShotActive, isBoosted])
+  }, [isColliding, spreadShotActive, isBoosted, tripleRocketActive])
 
   const wheelMaterial = useMemo(() => {
     return <meshStandardMaterial color="#222" />
@@ -73,6 +77,42 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
       <mesh position={[0, 0.9, 0.5]} geometry={geometryCache.getGeometry('car-windshield')}>
         {windshieldMaterial}
       </mesh>
+      
+      {/* Triple rocket mode indicator - 3 orange glows on the car */}
+      {tripleRocketActive && (
+        <>
+          <mesh position={[-0.5, 1.2, -1.5]} geometry={geometryCache.getGeometry('triple-rocket-indicator')}>
+            <meshStandardMaterial 
+              color="#ff6600" 
+              emissive="#ff3300" 
+              // eslint-disable-next-line react/no-unknown-property
+              emissiveIntensity={1.5}
+              transparent
+              opacity={0.8}
+            />
+          </mesh>
+          <mesh position={[0, 1.2, -1.5]} geometry={geometryCache.getGeometry('triple-rocket-indicator')}>
+            <meshStandardMaterial 
+              color="#ff6600" 
+              emissive="#ff3300" 
+              // eslint-disable-next-line react/no-unknown-property
+              emissiveIntensity={1.5}
+              transparent
+              opacity={0.8}
+            />
+          </mesh>
+          <mesh position={[0.5, 1.2, -1.5]} geometry={geometryCache.getGeometry('triple-rocket-indicator')}>
+            <meshStandardMaterial 
+              color="#ff6600" 
+              emissive="#ff3300" 
+              // eslint-disable-next-line react/no-unknown-property
+              emissiveIntensity={1.5}
+              transparent
+              opacity={0.8}
+            />
+          </mesh>
+        </>
+      )}
     </group>
   )
 })

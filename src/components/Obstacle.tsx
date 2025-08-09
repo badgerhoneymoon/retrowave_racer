@@ -4,7 +4,7 @@ import { geometryCache } from '../utils/geometryCache'
 
 interface ObstacleProps {
   position: [number, number, number]
-  type: 'reward' | 'cone' | 'car' | 'rocket_launcher'
+  type: 'reward' | 'cone' | 'car' | 'rocket_launcher' | 'triple_rocket'
 }
 
 function Obstacle({ position, type }: ObstacleProps) {
@@ -122,6 +122,57 @@ function Obstacle({ position, type }: ObstacleProps) {
                 emissiveIntensity={1.5}
                 transparent
                 opacity={0.8}
+              />
+            </mesh>
+          </group>
+        )
+      case 'triple_rocket':
+        return (
+          <group position={position}>
+            {/* Main orange box */}
+            <mesh position={[0, 0.6, 0]} geometry={geometryCache.getGeometry('triple-rocket-box')}>
+              <meshStandardMaterial 
+                color="#ff6600" 
+                emissive="#ff3300" 
+                // eslint-disable-next-line react/no-unknown-property
+                emissiveIntensity={0.4}
+                metalness={0.4}
+                roughness={0.3}
+              />
+            </mesh>
+            
+            {/* Triple rocket symbol on top - 3 small cylinders */}
+            <mesh position={[-0.3, 1.1, 0]} rotation={[Math.PI / 2, 0, 0]} geometry={geometryCache.getGeometry('triple-rocket-symbol')}>
+              <meshStandardMaterial color="#ffffff" emissive="#ffaa00" />
+            </mesh>
+            <mesh position={[0, 1.1, 0]} rotation={[Math.PI / 2, 0, 0]} geometry={geometryCache.getGeometry('triple-rocket-symbol')}>
+              <meshStandardMaterial color="#ffffff" emissive="#ffaa00" />
+            </mesh>
+            <mesh position={[0.3, 1.1, 0]} rotation={[Math.PI / 2, 0, 0]} geometry={geometryCache.getGeometry('triple-rocket-symbol')}>
+              <meshStandardMaterial color="#ffffff" emissive="#ffaa00" />
+            </mesh>
+            
+            {/* Glowing border effect */}
+            <mesh position={[0, 0.6, 0]} geometry={geometryCache.getGeometry('triple-rocket-glow')}>
+              <meshStandardMaterial 
+                color="#ff9900" 
+                emissive="#ff6600" 
+                // eslint-disable-next-line react/no-unknown-property
+                emissiveIntensity={1.2}
+                transparent
+                opacity={0.6}
+              />
+            </mesh>
+            
+            {/* Pulsing light effect */}
+            <mesh position={[0, 1.4, 0]} geometry={geometryCache.getGeometry('triple-rocket-pulse')}>
+              <meshStandardMaterial 
+                color="#ffaa00" 
+                emissive="#ff6600" 
+                // eslint-disable-next-line react/no-unknown-property
+                emissiveIntensity={2}
+                transparent
+                opacity={0.7}
               />
             </mesh>
           </group>

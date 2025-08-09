@@ -131,6 +131,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     
     // Update systems
     weapons.updateSpreadShot(currentTime)
+    weapons.updateTripleRocketMode(currentTime)
     const boostTransitionSpeed = powerups.updateBoost(currentTime, delta)
     
     // Handle shooting
@@ -198,6 +199,18 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
         }
         
         // Continue movement - don't stop for rocket launcher
+        physics.updatePosition(newX, newZ)
+      } else if (collision.isTripleRocket) {
+        // Triple rocket mode collected!
+        weapons.activateTripleRocketMode(currentTime)
+        setIsColliding(false)
+        
+        // Remove the collected triple rocket obstacle
+        if (onObstacleCollected && collision.obstacle) {
+          onObstacleCollected(collision.obstacle.id)
+        }
+        
+        // Continue movement - don't stop for triple rocket
         physics.updatePosition(newX, newZ)
       } else {
         // Regular collision - bounce only if speed is significant
@@ -275,6 +288,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
       isColliding={isColliding}
       spreadShotActive={weapons.spreadShotActive}
       isBoosted={powerups.isBoosted}
+      tripleRocketActive={weapons.tripleRocketActive}
     />
   )
 }

@@ -9,7 +9,7 @@ export interface ObstacleData {
   id: string
   x: number
   z: number
-  type: 'reward' | 'cone' | 'car' | 'rocket_launcher'
+  type: 'reward' | 'cone' | 'car' | 'rocket_launcher' | 'triple_rocket'
   velocity?: number // Z-axis velocity for moving cars (positive = towards camera, negative = away)
   lane?: 'left' | 'right' // Lane assignment for cars
   originalVelocity?: number // Original velocity before bounce for recovery
@@ -22,6 +22,7 @@ export interface CollisionResult {
   isBoost?: boolean
   isReward?: boolean
   isRocketLauncher?: boolean
+  isTripleRocket?: boolean
   enemyCarBounce?: {
     newVelocity: number
     bounceDistance: number
@@ -54,6 +55,13 @@ export const getObstacleBounds = (obstacle: ObstacleData): BoundingBox => {
         depth: 1
       }
     case 'rocket_launcher':
+      return {
+        x: obstacle.x - 0.8,
+        z: obstacle.z - 0.8,
+        width: 1.6,
+        depth: 1.6
+      }
+    case 'triple_rocket':
       return {
         x: obstacle.x - 0.8,
         z: obstacle.z - 0.8,
@@ -112,11 +120,12 @@ export const checkCollisions = (
       const isBoost = obstacle.type === 'cone' // Cones are boost items
       const isReward = obstacle.type === 'reward' // Rewards are point pickups
       const isRocketLauncher = obstacle.type === 'rocket_launcher' // Rocket launcher pickups
+      const isTripleRocket = obstacle.type === 'triple_rocket' // Triple rocket mode pickups
       
       // Calculate enemy car bounce if it's a car collision
       let enemyCarBounce: { newVelocity: number; bounceDistance: number } | undefined
       
-      if (obstacle.type === 'car' && !isBoost && !isReward && !isRocketLauncher) {
+      if (obstacle.type === 'car' && !isBoost && !isReward && !isRocketLauncher && !isTripleRocket) {
         const enemyVelocity = obstacle.velocity || 0
         
         // Convert player speed (forward +Z speed is positive) to world Z velocity (negative Z means forward in the scene)
@@ -155,7 +164,7 @@ export const checkCollisions = (
         }
       }
       
-      return { hit: true, obstacle, isBoost, isReward, isRocketLauncher, enemyCarBounce }
+      return { hit: true, obstacle, isBoost, isReward, isRocketLauncher, isTripleRocket, enemyCarBounce }
     }
   }
   

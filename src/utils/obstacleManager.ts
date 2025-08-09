@@ -42,16 +42,18 @@ export const generateObstaclesForRange = (
     
     // Randomly choose obstacle type with weighted probabilities
     const rand = Math.random()
-    let type: 'reward' | 'cone' | 'car' | 'rocket_launcher'
+    let type: 'reward' | 'cone' | 'car' | 'rocket_launcher' | 'triple_rocket'
     
     if (rand < 0.12) {
       type = 'reward'  // 12% chance - frequent reward pickups
     } else if (rand < 0.27) {
       type = 'cone'    // 15% chance - boost items  
-    } else if (rand < 0.30) {
-      type = 'rocket_launcher'  // 3% chance - rare rocket launcher pickups
+    } else if (rand < 0.29) {
+      type = 'rocket_launcher'  // 2% chance - rare rocket launcher pickups
+    } else if (rand < 0.31) {
+      type = 'triple_rocket'  // 2% chance - rare triple rocket mode pickups
     } else {
-      type = 'car'     // 70% chance - obstacles to avoid
+      type = 'car'     // 69% chance - obstacles to avoid
     }
     
     // For cars, choose from car lanes; for rewards/cones, use all lanes including center
@@ -77,6 +79,12 @@ export const generateObstaclesForRange = (
       const leftSidePositions = [-12, -6, 0] // Left lanes + center
       const laneIndex = Math.floor(Math.random() * leftSidePositions.length)
       x = leftSidePositions[laneIndex]
+      // Static obstacles don't have velocity
+    } else if (type === 'triple_rocket') {
+      // Triple rocket boxes spawn on right side of road
+      const rightSidePositions = [0, 6, 12] // Center + right lanes
+      const laneIndex = Math.floor(Math.random() * rightSidePositions.length)
+      x = rightSidePositions[laneIndex]
       // Static obstacles don't have velocity
     } else {
       // Rewards and cones can spawn in any lane including center

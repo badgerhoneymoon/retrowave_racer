@@ -11,6 +11,8 @@ export interface WeaponState {
   spreadShotActive: boolean
   spreadShotTimeRemaining: number
   missilesRemaining: number
+  tripleRocketActive: boolean
+  tripleRocketTimeRemaining: number
 }
 
 export function useCarWeapons({ score, onShoot, onSpreadShoot, onMissileShoot }: UseCarWeaponsProps) {
@@ -23,6 +25,10 @@ export function useCarWeapons({ score, onShoot, onSpreadShoot, onMissileShoot }:
   const [spreadShotEndTime, setSpreadShotEndTime] = useState(0)
   const [lastSpreadShotScore, setLastSpreadShotScore] = useState(0)
   const [missilesRemaining, setMissilesRemaining] = useState(5)
+  
+  // Triple rocket mode state
+  const [tripleRocketActive, setTripleRocketActive] = useState(false)
+  const [tripleRocketEndTime, setTripleRocketEndTime] = useState(0)
 
   // Handle spread shot activation based on score
   const updateSpreadShot = (currentTime: number) => {
@@ -85,9 +91,21 @@ export function useCarWeapons({ score, onShoot, onSpreadShoot, onMissileShoot }:
     const missileCooldown = 800 // 0.8 seconds between missiles (original timing)
     
     if (missilesRemaining > 0 && currentTime - lastMissileTime > missileCooldown && onMissileShoot) {
-      const startPosition: [number, number, number] = [carPosition.x, 2, carPosition.z]
-      onMissileShoot(startPosition, carRotation, carVelocity)
-      setMissilesRemaining(prev => prev - 1)
+      if (tripleRocketActive) {
+        // Fire 3 missiles with spread when in triple rocket mode
+        const spreadAngles = [-0.15, 0, 0.15] // Spread pattern for triple rockets
+        spreadAngles.forEach((angleOffset, index) => {
+          const xOffset = index === 0 ? -0.5 : index === 2 ? 0.5 : 0
+          const startPosition: [number, number, number] = [carPosition.x + xOffset, 2, carPosition.z]
+          onMissileShoot(startPosition, carRotation + angleOffset, carVelocity)
+        })
+        setMissilesRemaining(prev => Math.max(0, prev - 3)) // Consume 3 missiles
+      } else {
+        // Normal single missile
+        const startPosition: [number, number, number] = [carPosition.x, 2, carPosition.z]
+        onMissileShoot(startPosition, carRotation, carVelocity)
+        setMissilesRemaining(prev => prev - 1)
+      }
       setLastMissileTime(currentTime)
     }
   }
@@ -96,24 +114,43 @@ export function useCarWeapons({ score, onShoot, onSpreadShoot, onMissileShoot }:
   const addMissiles = (count: number = 5) => {
     setMissilesRemaining(prev => prev + count)
   }
+  
+  // Activate triple rocket mode
+  const activateTripleRocketMode = (currentTime: number) => {
+    setTripleRocketActive(true)
+    setTripleRocketEndTime(currentTime + 12000) // 12 seconds duration
+    setMissilesRemaining(prev => prev + 12) // Add 12 missiles
+  }
+  
+  // Update triple rocket mode (deactivate when expired)
+  const updateTripleRocketMode = (currentTime: number) => {
+    if (tripleRocketActive && currentTime > tripleRocketEndTime) {
+      setTripleRocketActive(false)
+    }
+  }
 
   // Get current weapon state for HUD
   const getWeaponState = (currentTime: number): WeaponState => ({
     spreadShotActive,
     spreadShotTimeRemaining: spreadShotActive ? Math.max(0, spreadShotEndTime - currentTime) : 0,
-    missilesRemaining
+    missilesRemaining,
+    tripleRocketActive,
+    tripleRocketTimeRemaining: tripleRocketActive ? Math.max(0, tripleRocketEndTime - currentTime) : 0
   })
 
   return {
     // State
     spreadShotActive,
     missilesRemaining,
+    tripleRocketActive,
     
     // Actions
     updateSpreadShot,
     handleShoot,
     handleMissileShoot,
     addMissiles,
+    activateTripleRocketMode,
+    updateTripleRocketMode,
     getWeaponState
   }
 }

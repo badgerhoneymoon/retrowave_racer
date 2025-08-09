@@ -73,6 +73,21 @@ export function useCarHUD() {
     if (spreadBarElement && weaponState.spreadShotActive) {
       spreadBarElement.style.width = `${(weaponState.spreadShotTimeRemaining / 5000) * 100}%`
     }
+    
+    // Update triple rocket display directly
+    const tripleContainer = document.querySelector('[data-hud="triple-container"]') as HTMLElement
+    const tripleValueElement = document.querySelector('[data-hud="triple-value"]') as HTMLElement
+    const tripleBarElement = document.querySelector('[data-hud="triple-bar"]') as HTMLElement
+    if (tripleContainer) {
+      tripleContainer.style.display = weaponState.tripleRocketActive ? 'block' : 'none'
+    }
+    if (tripleValueElement && weaponState.tripleRocketActive) {
+      const tripleSeconds = Math.max(0, Math.ceil(weaponState.tripleRocketTimeRemaining / 1000))
+      tripleValueElement.textContent = `🚀🚀🚀 ${tripleSeconds}s`
+    }
+    if (tripleBarElement && weaponState.tripleRocketActive) {
+      tripleBarElement.style.width = `${(weaponState.tripleRocketTimeRemaining / 12000) * 100}%`
+    }
   }
 
   return {

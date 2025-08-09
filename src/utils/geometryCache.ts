@@ -37,6 +37,13 @@ export class GeometryCache {
     this.cache.set('launcher-tube', new CylinderGeometry(0.12, 0.12, 0.6))
     this.cache.set('launcher-light', new SphereGeometry(0.08))
     this.cache.set('launcher-glow', new SphereGeometry(0.3))
+    
+    // Triple rocket geometries
+    this.cache.set('triple-rocket-box', new BoxGeometry(1.4, 1.2, 1.4))
+    this.cache.set('triple-rocket-symbol', new CylinderGeometry(0.08, 0.08, 0.3))
+    this.cache.set('triple-rocket-glow', new BoxGeometry(1.6, 1.4, 1.6))
+    this.cache.set('triple-rocket-pulse', new SphereGeometry(0.2))
+    this.cache.set('triple-rocket-indicator', new SphereGeometry(0.15))
 
     // Projectile geometries
     this.cache.set('plasma-core', new SphereGeometry(0.3, 8, 6))
