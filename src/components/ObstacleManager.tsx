@@ -44,7 +44,7 @@ function ObstacleManager({ carPosition, obstacles, onObstaclesUpdate }: Obstacle
       lastUpdateLengthRef.current = updated.length
       lastCarZRef.current = carPosition.z
     }
-  })
+  }, -2) // Queue traffic updates before Car queues pickup removal/bounce.
 
   return (
     <group>
