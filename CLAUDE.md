@@ -39,7 +39,7 @@ This is a 3D synthwave-style racing game called "Synthwave Racer" built with Rea
 The car is controlled via keyboard in `Car.tsx`:
 - Arrow keys or WASD for movement
 - **Space** - Fire plasma projectiles (normal and spread shot modes)
-- **M key** - Fire area-of-effect missiles (limited to 5 per rocket launcher pickup)
+- **E or Q key** (legacy M supported) - Fire area-of-effect missiles (limited to 5 per rocket launcher pickup)
 - Physics simulation with velocity, friction, and boundaries
 - Car movement is bounded to road width (-8 to 8 on X-axis)
 
@@ -113,7 +113,7 @@ The car is controlled via keyboard in `Car.tsx`:
 - **Rocket Launcher** (`type: 'rocket_launcher'`) - Rare pickup (3% spawn rate) gives 5 missiles
 
 ### Missile System
-- **Firing**: M key fires area-of-effect missiles (2 second cooldown)
+- **Firing**: E/Q (or legacy M) fires area-of-effect missiles (2 second cooldown)
 - **Physics**: Missiles have gravity, travel in arcs, explode on ground contact
 - **Area Damage**: 8-unit explosion radius destroys all cars in range
 - **Scoring**: 25 points per car destroyed by missile (vs 10 for plasma projectiles)

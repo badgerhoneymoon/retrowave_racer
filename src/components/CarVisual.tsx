@@ -3,6 +3,8 @@ import type { MutableRefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import {
   AdditiveBlending,
+  CanvasTexture,
+  PlaneGeometry,
   Group,
   Mesh,
   MeshBasicMaterial,
@@ -41,7 +43,7 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
     if (tripleRocketActive) return '#ff6600' // Orange when triple rocket active
     if (spreadShotActive) return '#ffff00' // Yellow when spread shot active
     if (isBoosted) return '#00ff00' // Green when boosted
-    return '#ff2bd6' // Neon magenta
+    return '#b51f66' // Candy-magenta paint; the lights provide the glow
   }
 
   const getAccentColor = () => {
@@ -58,9 +60,9 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
       new MeshPhysicalMaterial({
         color: getCarColor(),
         emissive: getCarColor(),
-        emissiveIntensity: isColliding ? 1.2 : 0.25,
-        metalness: 0.65,
-        roughness: 0.25,
+        emissiveIntensity: isColliding ? 1.2 : 0.035,
+        metalness: 0.5,
+        roughness: 0.3,
         clearcoat: 1.0,          // wet-look clearcoat — picks up the HDRI sunset
         clearcoatRoughness: 0.18,
       }),
@@ -89,9 +91,9 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
   const rimMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: '#00f0ff',
-        emissive: '#00f0ff',
-        emissiveIntensity: 1.4,
+        color: '#a3b9c1',
+        metalness: 0.8,
+        roughness: 0.25,
         toneMapped: false,
       }),
     []
@@ -119,13 +121,30 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
     []
   )
 
+  const underglowGeometry = useMemo(() => new PlaneGeometry(4.4, 6.4), [])
+  const underglowTexture = useMemo(() => {
+    const canvas = document.createElement('canvas')
+    canvas.width = canvas.height = 128
+    const ctx = canvas.getContext('2d')!
+    const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64)
+    gradient.addColorStop(0, 'rgba(0,0,0,0.6)')
+    gradient.addColorStop(0.35, 'rgba(0,0,0,0.45)')
+    gradient.addColorStop(0.58, 'rgba(255,255,255,0.22)')
+    gradient.addColorStop(0.78, 'rgba(255,255,255,0.04)')
+    gradient.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = gradient
+    ctx.fillRect(0, 0, 128, 128)
+    return new CanvasTexture(canvas)
+  }, [])
+  useEffect(() => () => { underglowTexture.dispose(); underglowGeometry.dispose() }, [underglowTexture, underglowGeometry])
+
   const underglowMaterial = useMemo(
     () =>
       new MeshBasicMaterial({
         color: getAccentColor(),
         transparent: true,
-        opacity: 0.32,
-        blending: AdditiveBlending,
+        map: underglowTexture,
+        opacity: 0.85,
         depthWrite: false,
         toneMapped: false,
       }),
@@ -135,7 +154,7 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
   const exhaustMaterial = useMemo(
     () =>
       new MeshBasicMaterial({
-        color: isBoosted ? '#80ff80' : '#2fb9c9',
+        color: isBoosted ? '#80ff80' : '#ff7755',
         transparent: true,
         opacity: 0.6,
         blending: AdditiveBlending,
@@ -159,15 +178,11 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
     []
   )
 
-  // Dispose GPU programs when state-dependent materials are swapped out,
-  // and when the component unmounts
-  useEffect(() => {
-    return () => {
-      bodyMaterial.dispose()
-      underglowMaterial.dispose()
-      exhaustMaterial.dispose()
-    }
-  }, [bodyMaterial, underglowMaterial, exhaustMaterial])
+  // Dispose only the material that changed; collision flashes must not
+  // invalidate the unchanged exhaust program.
+  useEffect(() => () => bodyMaterial.dispose(), [bodyMaterial])
+  useEffect(() => () => underglowMaterial.dispose(), [underglowMaterial])
+  useEffect(() => () => exhaustMaterial.dispose(), [exhaustMaterial])
 
   useEffect(() => {
     return () => {
@@ -184,8 +199,8 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
       bobRef.current.rotation.x = Math.sin(t * 1.7) * 0.006
     }
     const pulse = (isBoosted ? 1.15 : 0.7) + Math.sin(t * (isBoosted ? 18 : 7)) * 0.15
-    if (exhaustLeftRef.current) exhaustLeftRef.current.scale.setScalar(pulse)
-    if (exhaustRightRef.current) exhaustRightRef.current.scale.setScalar(pulse)
+    if (exhaustLeftRef.current) exhaustLeftRef.current.scale.set(0.35 * pulse, 0.25 * pulse, 0.85 * pulse)
+    if (exhaustRightRef.current) exhaustRightRef.current.scale.set(0.35 * pulse, 0.25 * pulse, 0.85 * pulse)
 
     // Light streaks stretch and brighten with speed; hidden at crawl
     const spd = speedRef ? Math.abs(speedRef.current) : 0
@@ -229,8 +244,7 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
         <mesh
           position={[0, -0.42, 0]}
           rotation={[-Math.PI / 2, 0, 0]}
-          scale={[1, 1.35, 1]}
-          geometry={geometryCache.getGeometry('car-underglow')}
+          geometry={underglowGeometry}
           material={underglowMaterial}
         />
 

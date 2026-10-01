@@ -3,6 +3,8 @@ import { useFrame } from '@react-three/fiber'
 import {
   BoxGeometry,
   CanvasTexture,
+  BufferAttribute,
+  SRGBColorSpace,
   InstancedMesh,
   Matrix4,
   MeshBasicMaterial,
@@ -33,20 +35,20 @@ function createFacadeTexture() {
   canvas.height = h
   const ctx = canvas.getContext('2d')!
 
-  ctx.fillStyle = '#07040f'
+  ctx.fillStyle = '#080d1b'
   ctx.fillRect(0, 0, w, h)
 
   const cols = 8
   const rows = 20
   const cw = w / cols
   const ch = h / rows
-  const palette = ['#ffd75e', '#00f0ff', '#ff2bd6', '#ff7a1a', '#8fd8ff']
+  const palette = ['#efbb75', '#ffcfa2', '#79bacd', '#7695bb', '#cc759a']
 
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const r = seededRandom(x * 31 + y * 57)
       if (r < 0.42) continue // dark window
-      const color = palette[Math.floor(seededRandom(x * 13 + y * 91) * palette.length)]
+      const color = palette[Math.floor(seededRandom(x * 13 + Math.floor(y / 5) * 91) * palette.length)]
       ctx.globalAlpha = 0.35 + seededRandom(x * 71 + y * 17) * 0.65
       ctx.fillStyle = color
       ctx.fillRect(x * cw + cw * 0.22, y * ch + ch * 0.25, cw * 0.56, ch * 0.5)
@@ -55,6 +57,7 @@ function createFacadeTexture() {
   ctx.globalAlpha = 1
 
   const texture = new CanvasTexture(canvas)
+  texture.colorSpace = SRGBColorSpace
   texture.needsUpdate = true
   return texture
 }
@@ -68,7 +71,7 @@ function createLayout() {
       x: side * (36 + seededRandom(i * 3 + 1) * 58),
       z: -(i / BUILDING_COUNT) * WRAP_LENGTH + seededRandom(i * 7 + 2) * 12,
       w: 4 + seededRandom(i * 5 + 3) * 8,
-      h: 6 + Math.pow(seededRandom(i * 11 + 4), 1.6) * 30,
+      h: 8 + Math.pow(seededRandom(i * 11 + 4), 1.8) * 48,
       d: 4 + seededRandom(i * 13 + 5) * 8,
       rot: (seededRandom(i * 17 + 6) - 0.5) * 0.35,
     })
@@ -82,21 +85,22 @@ function CitySkyline({ carZ = 0 }: CitySkylineProps) {
   const layout = useMemo(createLayout, [])
   const facadeTexture = useMemo(createFacadeTexture, [])
 
-  const geometry = useMemo(() => new BoxGeometry(1, 1, 1), [])
+  const geometry = useMemo(() => {
+    const geo = new BoxGeometry(1, 1, 1)
+    const normals = geo.getAttribute('normal')
+    const colors = new Float32Array(normals.count * 3)
+    for (let i = 0; i < normals.count; i++) {
+      const shade = Math.abs(normals.getY(i)) > 0.5 ? 0.08 : 1
+      colors.set([shade, shade, shade], i * 3)
+    }
+    geo.setAttribute('color', new BufferAttribute(colors, 3))
+    geo.clearGroups()
+    return geo
+  }, [])
   const sideMaterial = useMemo(
-    () => new MeshBasicMaterial({ map: facadeTexture, toneMapped: false }),
+    () => new MeshBasicMaterial({ map: facadeTexture, vertexColors: true, toneMapped: false }),
     [facadeTexture]
   )
-  const topMaterial = useMemo(
-    () => new MeshBasicMaterial({ color: '#05030c' }),
-    []
-  )
-  // BoxGeometry groups: [px, nx, py, ny, pz, nz]
-  const materials = useMemo(
-    () => [sideMaterial, sideMaterial, topMaterial, topMaterial, sideMaterial, sideMaterial],
-    [sideMaterial, topMaterial]
-  )
-
   const scratchMatrix = useMemo(() => new Matrix4(), [])
   const scratchPos = useMemo(() => new Vector3(), [])
   const scratchScale = useMemo(() => new Vector3(), [])
@@ -132,7 +136,7 @@ function CitySkyline({ carZ = 0 }: CitySkylineProps) {
   return (
     <instancedMesh
       ref={meshRef}
-      args={[geometry, materials, BUILDING_COUNT]}
+      args={[geometry, sideMaterial, BUILDING_COUNT]}
       frustumCulled={false}
     />
   )

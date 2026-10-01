@@ -5,8 +5,8 @@ function ControlHints() {
       <div className="hints-title">Controls</div>
 
       <div className="hint-row" style={{ ['--chip' as any]: '#ffe14d' }}>
-        <span className="key-chip">WASD</span>
-        <span className="hint-label">Movement</span>
+        <span className="key-chip">WASD / ↑↓←→</span>
+        <span className="hint-label">Drive / brake</span>
       </div>
 
       <div className="hint-row" style={{ ['--chip' as any]: '#ff2bd6' }}>
@@ -15,8 +15,8 @@ function ControlHints() {
       </div>
 
       <div className="hint-row" style={{ ['--chip' as any]: '#ff7a1a' }}>
-        <span className="key-chip">M</span>
-        <span className="hint-label">Rockets</span>
+        <span className="key-chip">E / Q</span>
+        <span className="hint-label" title="Legacy M also works">Rockets</span>
       </div>
 
       <div className="hint-row" style={{ ['--chip' as any]: '#39ff6a' }}>

@@ -8,9 +8,10 @@ const TAU = Math.PI * 2
 
 interface SmoothRoadProps {
   carZ?: number
+  carX?: number
 }
 
-function SmoothRoad({ carZ = 0 }: SmoothRoadProps) {
+function SmoothRoad({ carZ = 0, carX = 0 }: SmoothRoadProps) {
   const materialRef = useRef<ShaderMaterial>(null)
   const meshRef = useRef<THREE.Mesh>(null)
 
@@ -20,6 +21,7 @@ function SmoothRoad({ carZ = 0 }: SmoothRoadProps) {
       // Phases are computed CPU-side in double precision and wrapped to [0, 2π)
       // so the GLSL sine arguments stay small no matter how far you drive.
       materialRef.current.uniforms.uCarZ.value = carZ
+      materialRef.current.uniforms.uCarX.value = carX
       materialRef.current.uniforms.uTime.value = clock.elapsedTime
       const phase = materialRef.current.uniforms.uCurvePhase.value as THREE.Vector2
       phase.set(
@@ -46,6 +48,7 @@ function SmoothRoad({ carZ = 0 }: SmoothRoadProps) {
 
   const fragmentShader = /* glsl */ `
     uniform float uCarZ;
+    uniform float uCarX;
     uniform float uTime;
     uniform vec2 uCurvePhase;
     varying vec3 vWorldPosition;
@@ -85,10 +88,26 @@ function SmoothRoad({ carZ = 0 }: SmoothRoadProps) {
       vec3 ground = groundBase + gridGlow * (1.0 - fogF * 0.7);
 
       // ---------- Asphalt ---------- (kept deep-black so ACES can't wash it out)
-      vec3 asphalt = vec3(0.020, 0.010, 0.036);
+      vec3 asphalt = vec3(0.016, 0.022, 0.038);
       // faint longitudinal wear streaks for texture (wrap-safe frequency)
       float streak = sin(wp.x * 6.3) * sin(zPat * 0.3456);
-      asphalt += vec3(0.006, 0.004, 0.010) * smoothstep(0.2, 1.0, streak);
+      asphalt += vec3(0.009, 0.011, 0.016) * smoothstep(0.2, 1.0, streak);
+      // Broad painted-light cues on the existing road shader: no scene capture,
+      // extra lights or shadow maps. Keep markings readable under the headlights.
+      float forward = uCarZ - wp.y;
+      float beamWidth = 1.8 + max(0.0, forward) * 0.13;
+      float beam = smoothstep(0.0, 5.0, forward) * (1.0 - smoothstep(18.0, 75.0, forward));
+      beam *= 1.0 - smoothstep(beamWidth * 0.3, beamWidth, abs(wp.x - uCarX));
+      asphalt += vec3(0.065, 0.082, 0.10) * beam;
+      float shoulder = smoothstep(14.5, 15.0, ax);
+      asphalt += vec3(0.012, 0.014, 0.022) * shoulder;
+      float curb = 1.0 - smoothstep(0.16, 0.32, abs(ax - 17.8));
+      vec3 curbColor = mix(vec3(0.28, 0.035, 0.07), vec3(0.42, 0.48, 0.55), step(0.5, fract(zPat / 4.0)));
+      asphalt += curbColor * curb * (1.0 - fogF);
+      // A restrained horizon reflection adds depth without enabling the costly
+      // optional planar reflector. This is an art-direction approximation.
+      float horizonSheen = exp(-rx * rx * 0.018) * smoothstep(20.0, 140.0, forward);
+      asphalt += vec3(0.065, 0.026, 0.044) * horizonSheen;
 
       // Lane divider dashes (lanes sit at -12,-6,0,6,12 → dividers at ±3, ±9)
       float dashZ = step(0.5, fract(zPat / 8.0));
@@ -130,6 +149,7 @@ function SmoothRoad({ carZ = 0 }: SmoothRoadProps) {
         ref={materialRef}
         uniforms={{
           uCarZ: { value: 0 },
+          uCarX: { value: 0 },
           uTime: { value: 0 },
           uCurvePhase: { value: new THREE.Vector2(0, 0) }
         }}

@@ -80,7 +80,7 @@ function RetrowaveSun({ carZ = 0 }: RetrowaveSunProps) {
     // It hangs over the road's vanishing point, so it sways with the curves.
     const targetZ = carZ - 140 // Always 140 units ahead of car
     const targetX = roadCenterAt(targetZ)
-    const targetY = 8 + Math.sin(clock.elapsedTime * 0.4) * 0.4 // Barely-there float
+    const targetY = 18 + Math.sin(clock.elapsedTime * 0.4) * 0.4 // Barely-there float
 
     // Gentle interpolation to prevent any jerkiness (same as camera)
     const sunLerpFactor = 0.1
@@ -104,7 +104,7 @@ function RetrowaveSun({ carZ = 0 }: RetrowaveSunProps) {
       </mesh>
       {/* Striped sun disc */}
       <mesh>
-        <circleGeometry args={[15, 64]} />
+        <circleGeometry args={[19, 64]} />
         {/* eslint-disable-next-line react/no-unknown-property */}
         <meshBasicMaterial map={texture} transparent toneMapped={false} fog={false} />
       </mesh>

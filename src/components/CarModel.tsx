@@ -1,6 +1,7 @@
 import { memo, Suspense, useEffect, useMemo, useRef } from 'react'
 import { Clone, useGLTF } from '@react-three/drei'
-import { Box3, Color, Group, Material, Mesh, MeshStandardMaterial, Object3D, Vector3 } from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+import { BufferGeometry, Box3, Color, Group, Material, Mesh, MeshStandardMaterial, Object3D, Vector3 } from 'three'
 
 // ---------------------------------------------------------------------------
 // Downloaded GLB car models (see public/models/cars/CREDITS.md for licenses).
@@ -127,6 +128,7 @@ function prepareTemplate(source: Object3D, opts: TemplateOptions): Group {
       const m = src.clone()
       // Renamed by role; HeroCarModel assigns the live materials by this name
       m.name = role || 'hero-trim'
+      mesh.userData.role = m.name
       mesh.material = m
       return
     }
@@ -153,6 +155,31 @@ function prepareTemplate(source: Object3D, opts: TemplateOptions): Group {
     mesh.material = m
   })
 
+  if (opts.isHero) {
+    // The car is static geometry: bake its node transforms once and merge by
+    // visual role. Keep every triangle and all state-driven material changes.
+    template.updateWorldMatrix(true, true)
+    const batches = new Map<string, { material: Material; geometries: BufferGeometry[] }>()
+    template.traverse(obj => {
+      const mesh = obj as Mesh
+      if (!mesh.isMesh) return
+      const material = mesh.material as Material
+      const role = mesh.userData.role as string
+      const batch = batches.get(role) ?? { material, geometries: [] }
+      batch.geometries.push(mesh.geometry.clone().applyMatrix4(mesh.matrixWorld))
+      batches.set(role, batch)
+    })
+    const merged = new Group()
+    for (const [role, batch] of batches) {
+      const geometry = mergeGeometries(batch.geometries)
+      batch.geometries.forEach(g => g.dispose())
+      if (!geometry) throw new Error(`Could not merge hero geometry: ${role}`)
+      const mesh = new Mesh(geometry, batch.material)
+      mesh.userData.role = role
+      merged.add(mesh)
+    }
+    return merged
+  }
   return template
 }
 
@@ -222,7 +249,7 @@ function HeroCarInner({ bodyMaterial, glassMaterial, tireMaterial, rimMaterial, 
     root.traverse(obj => {
       const mesh = obj as Mesh
       if (!(mesh as unknown as { isMesh?: boolean }).isMesh) return
-      const role = (mesh.material as Material).name
+      const role = mesh.userData.role as string
       switch (role) {
         case 'hero-body':
           mesh.material = bodyMaterial

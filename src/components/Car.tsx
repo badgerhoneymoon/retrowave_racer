@@ -9,6 +9,7 @@ import { useCarHUD } from '../hooks/useCarHUD'
 import CarVisual from './CarVisual'
 import SpeedLines from './SpeedLines'
 import { toggleSound } from '../utils/audio'
+import { acceptsGameplayKey, HELD_BINDINGS, HeldAction } from '../utils/controls'
 
 interface CarProps {
   position?: [number, number, number]
@@ -56,71 +57,44 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
   })
 
   useEffect(() => {
+    const pressed = new Set<string>()
+    const refreshAction = (action: HeldAction) => {
+      keysRef.current[action] = [...pressed].some(code => HELD_BINDINGS[code] === action)
+    }
+    const clear = () => {
+      pressed.clear()
+      for (const action of Object.keys(keysRef.current) as HeldAction[]) keysRef.current[action] = false
+    }
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Ignore auto-repeat to prevent retriggering actions like audio start
-      if (event.repeat) return
-      switch (event.code) {
-        case 'ArrowLeft':
-        case 'KeyA':
-          keysRef.current.left = true
-          break
-        case 'ArrowRight':
-        case 'KeyD':
-          keysRef.current.right = true
-          break
-        case 'ArrowUp':
-        case 'KeyW':
-          keysRef.current.up = true
-          break
-        case 'ArrowDown':
-        case 'KeyS':
-          keysRef.current.down = true
-          break
-        case 'Space':
-          keysRef.current.shoot = true
-          break
-        case 'KeyR':
-          toggleSound()
-          break
-        case 'KeyM':
-          keysRef.current.missile = true
-          break
+      if (!acceptsGameplayKey(event)) return
+      const action = HELD_BINDINGS[event.code]
+      if (action) {
+        event.preventDefault()
+        pressed.add(event.code)
+        refreshAction(action)
+      } else if (event.code === 'KeyR' && !event.repeat) {
+        event.preventDefault()
+        toggleSound()
       }
     }
-
     const handleKeyUp = (event: KeyboardEvent) => {
-      switch (event.code) {
-        case 'ArrowLeft':
-        case 'KeyA':
-          keysRef.current.left = false
-          break
-        case 'ArrowRight':
-        case 'KeyD':
-          keysRef.current.right = false
-          break
-        case 'ArrowUp':
-        case 'KeyW':
-          keysRef.current.up = false
-          break
-        case 'ArrowDown':
-        case 'KeyS':
-          keysRef.current.down = false
-          break
-        case 'Space':
-          keysRef.current.shoot = false
-          break
-        case 'KeyM':
-          keysRef.current.missile = false
-          break
-      }
+      const action = HELD_BINDINGS[event.code]
+      if (!action) return
+      pressed.delete(event.code)
+      refreshAction(action)
+      if (acceptsGameplayKey(event)) event.preventDefault()
     }
-
+    const handleVisibility = () => { if (document.hidden) clear() }
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', handleKeyUp)
-
+    window.addEventListener('blur', clear)
+    document.addEventListener('visibilitychange', handleVisibility)
     return () => {
+      clear()
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
+      window.removeEventListener('blur', clear)
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
 

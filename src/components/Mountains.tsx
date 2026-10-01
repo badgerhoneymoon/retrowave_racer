@@ -74,7 +74,7 @@ function Mountains({ carZ = 0 }: MountainsProps) {
           color="#ff2bd6"
           wireframe
           transparent
-          opacity={0.28}
+          opacity={0.12}
           toneMapped={false}
         />
       </mesh>

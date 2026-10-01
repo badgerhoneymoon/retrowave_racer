@@ -1,4 +1,4 @@
-import { memo, useRef } from 'react'
+import { memo, useRef, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { MeshReflectorMaterial, useTexture } from '@react-three/drei'
 import { Mesh, RepeatWrapping } from 'three'
@@ -16,12 +16,14 @@ function WetRoad({ carZ = 0 }: WetRoadProps) {
 
   const normalMap = useTexture('/textures/road007/Road007_1K-JPG_NormalGL.jpg')
   const roughnessMap = useTexture('/textures/road007/Road007_1K-JPG_Roughness.jpg')
-  for (const tex of [normalMap, roughnessMap]) {
-    tex.wrapS = RepeatWrapping
-    tex.wrapT = RepeatWrapping
-    tex.repeat.set(24, 100)
-    tex.needsUpdate = true
-  }
+  useEffect(() => {
+    for (const tex of [normalMap, roughnessMap]) {
+      tex.wrapS = RepeatWrapping
+      tex.wrapT = RepeatWrapping
+      tex.repeat.set(24, 100)
+      tex.needsUpdate = true
+    }
+  }, [normalMap, roughnessMap])
 
   useFrame(() => {
     if (meshRef.current) {

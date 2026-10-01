@@ -13,6 +13,7 @@ import Bloom from './Bloom'
 import WetRoad from './WetRoad'
 import FlashLights from './FlashLights'
 import FpsProbe from './FpsProbe'
+import { acceptsGameplayKey } from '../utils/controls'
 import PlasmaProjectile from './PlasmaProjectile'
 import AreaMissile from './AreaMissile'
 import MissileExplosion from './MissileExplosion'
@@ -57,7 +58,8 @@ function Scene() {
   // T toggles the wet reflective road layer (perf A/B switch)
   useEffect(() => {
     const handleToggle = (event: KeyboardEvent) => {
-      if (event.code === 'KeyT' && !event.repeat) {
+      if (event.code === 'KeyT' && !event.repeat && acceptsGameplayKey(event)) {
+        event.preventDefault()
         setWetRoadEnabled(v => !v)
       }
     }
@@ -277,7 +279,7 @@ function Scene() {
       <RetrowaveSun carZ={carPosition.z} />
       <Mountains carZ={carPosition.z} />
       <CitySkyline carZ={carPosition.z} />
-      <SmoothRoad carZ={carPosition.z} />
+      <SmoothRoad carZ={carPosition.z} carX={carPosition.x} />
       {wetRoadEnabled && <WetRoad carZ={carPosition.z} />}
       <ObstacleManager 
         carPosition={carPosition} 

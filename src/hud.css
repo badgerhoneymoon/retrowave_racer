@@ -23,7 +23,7 @@
     to bottom,
     rgba(0, 0, 0, 0) 0px,
     rgba(0, 0, 0, 0) 2px,
-    rgba(0, 0, 0, 0.16) 3px,
+    rgba(0, 0, 0, 0.07) 3px,
     rgba(0, 0, 0, 0) 4px
   );
   mix-blend-mode: multiply;
@@ -48,9 +48,9 @@
   transform: translateX(-50%);
   z-index: 1000;
   font-family: var(--font-display);
-  font-size: 22px;
+  font-size: 19px;
   font-weight: 900;
-  letter-spacing: 8px;
+  letter-spacing: 7px;
   text-transform: uppercase;
   color: #fff;
   text-shadow:
@@ -214,4 +214,15 @@
   letter-spacing: 1px;
   color: var(--chip, var(--cyan));
   text-shadow: 0 0 6px color-mix(in srgb, var(--chip, var(--cyan)) 60%, transparent);
+}
+
+/* Keep the driving view open while retaining clear keyboard hints. */
+.key-chip { min-width: 54px; font-size: 10px; }
+.control-hints { min-width: 190px; padding: 12px 14px; }
+@media (max-width: 760px) {
+  .game-title { top: 8px; font-size: 14px; letter-spacing: 3px; }
+  .hud-panel { min-width: 110px; padding: 9px 10px; }
+  .speed-panel, .missiles-panel { left: 10px; }
+  .score-panel { right: 10px; }
+  .control-hints { right: 10px; bottom: 10px; min-width: 150px; }
 }
