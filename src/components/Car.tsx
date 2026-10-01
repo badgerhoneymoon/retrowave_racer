@@ -33,7 +33,7 @@ interface CarProps {
 function Car({ worldPositionRef, position = [0, 0, 0], onPositionChange, obstacles = [], onObstacleCollected, onRewardCollected, onShoot, onSpreadShoot, onMissileShoot, score = 0, onScoreUpdate, onEnemyCarBounce, onPlayerCrash }: CarProps) {
   const carRef = useRef<Group>(null)
   const shakeRef = useRef(0) // camera impact shake amplitude (ref: no re-renders)
-  const previousCameraTarget = useRef({ x: 0, y: 4, z: 6 })
+  const previousCameraTarget = useRef({ x: 0, y: 4, z: 10 })
   const rollRef = useRef(0) // camera banking angle (ref: no re-renders)
   
   // Hooks
@@ -231,10 +231,10 @@ function Car({ worldPositionRef, position = [0, 0, 0], onPositionChange, obstacl
       carRef.current.rotation.y = physics.carRotationRef.current
     }
 
-    // Update camera to follow car (stable following with closer distance)
+    // Keep a middle chase distance without speed-dependent pullback.
     const camera = state.camera
     const targetX = physics.carPositionRef.current.x
-    const targetZ = physics.carPositionRef.current.z + 6  // Closer camera behind car
+    const targetZ = physics.carPositionRef.current.z + 10
     const targetY = 4  // Lower camera height
 
     const previous = previousCameraTarget.current
