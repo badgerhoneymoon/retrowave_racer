@@ -10,6 +10,14 @@ export function followMovingTarget(value: number, previousTarget: number, target
   return value + (previousTarget - value) * alpha + (target - previousTarget) * (1 - alpha / step)
 }
 
+// Carry the chase camera with the car, then ease its relative offset. Speed
+// cannot accumulate extra trailing distance, including during boost/braking.
+export function followCarOffset(value: number, previousTarget: number, target: number, delta: number): number {
+  const carried = value + target - previousTarget
+  if (delta <= 0) return carried
+  return target + (carried - target) * Math.exp(-FOLLOW_RATE * delta)
+}
+
 export interface WorldPositionRef {
   current: { x: number; z: number }
 }

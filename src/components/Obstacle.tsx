@@ -1,10 +1,11 @@
 import { memo, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { AdditiveBlending, DoubleSide, Group, MeshBasicMaterial, MeshStandardMaterial } from 'three'
+import { AdditiveBlending, Group, MeshBasicMaterial } from 'three'
 import { geometryCache } from '../utils/geometryCache'
 import { roadYawAt } from '../utils/roadCurve'
 import { ConceptTraffic } from './ConceptCar'
 import { CRADLE_BATCHES, MISSILE_BATCHES } from './CombatAssets'
+import { REWARD_BATCHES, BOOST_BATCHES } from './PickupAssets'
 
 interface ObstacleProps {
   position: [number, number, number]
@@ -31,73 +32,10 @@ function variantFromId(id: string): number {
 // ---------------------------------------------------------------------------
 
 const MAT = {
-  // Reward — floating energy shard
-  rewardCrystal: new MeshStandardMaterial({
-    color: '#ffd75e', emissive: '#ffb300', emissiveIntensity: 1.6,
-    metalness: 0.6, roughness: 0.15, toneMapped: false,
-  }),
-  rewardRing: new MeshBasicMaterial({
-    color: '#ffe9a8', transparent: true, opacity: 0.75,
-    blending: AdditiveBlending, depthWrite: false, toneMapped: false,
-  }),
-  rewardMarker: new MeshBasicMaterial({
-    color: '#ffb300', transparent: true, opacity: 0.35,
-    blending: AdditiveBlending, depthWrite: false, toneMapped: false,
-  }),
-
-  // Boost pylon — green holographic spire
-  boostPylon: new MeshStandardMaterial({
-    color: '#0a3a1a', emissive: '#39ff6a', emissiveIntensity: 0.9,
-    transparent: true, opacity: 0.92, toneMapped: false,
-  }),
-  boostWire: new MeshBasicMaterial({
-    color: '#39ff6a', wireframe: true, transparent: true, opacity: 0.5, toneMapped: false,
-  }),
-  boostRing: new MeshBasicMaterial({
-    color: '#39ff6a', transparent: true, opacity: 0.8,
-    blending: AdditiveBlending, depthWrite: false, toneMapped: false,
-  }),
-
-  // Holo-crates (rocket launcher / triple rocket)
-  crateOrange: new MeshStandardMaterial({
-    color: '#2a1206', emissive: '#ff7a1a', emissiveIntensity: 0.5,
-    transparent: true, opacity: 0.9, metalness: 0.5, roughness: 0.4,
-  }),
-  crateOrangeWire: new MeshBasicMaterial({
-    color: '#ff7a1a', wireframe: true, transparent: true, opacity: 0.85, toneMapped: false,
-  }),
-  crateMagenta: new MeshStandardMaterial({
-    color: '#26061f', emissive: '#ff2bd6', emissiveIntensity: 0.5,
-    transparent: true, opacity: 0.9, metalness: 0.5, roughness: 0.4,
-  }),
-  crateMagentaWire: new MeshBasicMaterial({
-    color: '#ff2bd6', wireframe: true, transparent: true, opacity: 0.85, toneMapped: false,
-  }),
-  beamOrange: new MeshBasicMaterial({
-    color: '#ff7a1a', transparent: true, opacity: 0.14,
-    blending: AdditiveBlending, depthWrite: false, side: DoubleSide, toneMapped: false,
-  }),
-  beamMagenta: new MeshBasicMaterial({
-    color: '#ff2bd6', transparent: true, opacity: 0.14,
-    blending: AdditiveBlending, depthWrite: false, side: DoubleSide, toneMapped: false,
-  }),
-  holoRingOrange: new MeshBasicMaterial({
-    color: '#ff7a1a', transparent: true, opacity: 0.5,
-    blending: AdditiveBlending, depthWrite: false, toneMapped: false,
-  }),
-  holoRingMagenta: new MeshBasicMaterial({
-    color: '#ff2bd6', transparent: true, opacity: 0.5,
-    blending: AdditiveBlending, depthWrite: false, toneMapped: false,
-  }),
-  missileIcon: new MeshStandardMaterial({
-    color: '#ffb300', emissive: '#ff7a1a', emissiveIntensity: 1.2, toneMapped: false,
-  }),
-  missileNoseIcon: new MeshStandardMaterial({
-    color: '#ffe9a8', emissive: '#ffb300', emissiveIntensity: 1.5, toneMapped: false,
-  }),
-  tripleIcon: new MeshStandardMaterial({
-    color: '#ffd2f0', emissive: '#ff2bd6', emissiveIntensity: 1.4, toneMapped: false,
-  }),
+  rewardMarker: new MeshBasicMaterial({ color: '#ffb300', transparent: true, opacity: .35, blending: AdditiveBlending, depthWrite: false, toneMapped: false }),
+  boostRing: new MeshBasicMaterial({ color: '#39ff6a', transparent: true, opacity: .65, blending: AdditiveBlending, depthWrite: false, toneMapped: false }),
+  holoRingOrange: new MeshBasicMaterial({ color: '#ff7a1a', transparent: true, opacity: .5, blending: AdditiveBlending, depthWrite: false, toneMapped: false }),
+  holoRingMagenta: new MeshBasicMaterial({ color: '#ff2bd6', transparent: true, opacity: .5, blending: AdditiveBlending, depthWrite: false, toneMapped: false }),
 }
 
 // Deterministic phase offset per obstacle so pickups don't bob in sync
@@ -123,12 +61,11 @@ function Obstacle({ position, type, velocity, obstacleId }: ObstacleProps) {
 
   switch (type) {
     case 'reward': {
-      // Floating energy shard
+      // Gold energy core in a machined protective frame
       return (
-        <group position={position}>
+        <group position={position} dispose={null}>
           <group ref={spinRef}>
-            <mesh geometry={geometryCache.getGeometry('reward-crystal')} material={MAT.rewardCrystal} />
-            <mesh rotation={[Math.PI / 2.6, 0, 0]} geometry={geometryCache.getGeometry('reward-ring')} material={MAT.rewardRing} />
+            {REWARD_BATCHES.map((b,i)=><mesh key={i} geometry={b.geometry} material={b.material} castShadow receiveShadow />)}
           </group>
           {/* Ground marker */}
           <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]} geometry={geometryCache.getGeometry('reward-marker')} material={MAT.rewardMarker} />
@@ -137,14 +74,12 @@ function Obstacle({ position, type, velocity, obstacleId }: ObstacleProps) {
     }
 
     case 'cone': {
-      // Boost pylon — green holographic spire
+      // Green boost cone retains its silhouette with physical armor and light strips
       return (
-        <group position={position}>
-          <mesh position={[0, 0.8, 0]} geometry={geometryCache.getGeometry('boost-pylon')} material={MAT.boostPylon} />
-          {/* Wireframe twin for holo shimmer */}
-          <mesh position={[0, 0.8, 0]} geometry={geometryCache.getGeometry('boost-pylon')} material={MAT.boostWire} />
+        <group position={position} dispose={null}>
+          {BOOST_BATCHES.map((b,i)=><mesh key={i} geometry={b.geometry} material={b.material} castShadow receiveShadow />)}
           <group ref={spinRef}>
-            <mesh position={[0, 1.05, 0]} rotation={[Math.PI / 2, 0, 0]} geometry={geometryCache.getGeometry('boost-ring')} material={MAT.boostRing} />
+            <mesh position={[0,-.43,0]} rotation={[Math.PI/2,0,0]} geometry={geometryCache.getGeometry('boost-ring')} material={MAT.boostRing} />
           </group>
         </group>
       )

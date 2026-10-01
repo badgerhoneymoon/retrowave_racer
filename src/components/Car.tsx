@@ -8,7 +8,7 @@ import { useCarPowerups } from '../hooks/useCarPowerups'
 import { useCarHUD } from '../hooks/useCarHUD'
 import CarVisual from './CarVisual'
 import SpeedLines from './SpeedLines'
-import { followMovingTarget, WorldPositionRef } from '../utils/motion'
+import { followMovingTarget, followCarOffset, WorldPositionRef } from '../utils/motion'
 import { toggleSound } from '../utils/audio'
 import { acceptsGameplayKey, HELD_BINDINGS, HeldAction } from '../utils/controls'
 
@@ -238,9 +238,9 @@ function Car({ worldPositionRef, position = [0, 0, 0], onPositionChange, obstacl
     const targetY = 4  // Lower camera height
 
     const previous = previousCameraTarget.current
-    camera.position.x = followMovingTarget(camera.position.x, previous.x, targetX, delta)
+    camera.position.x = followCarOffset(camera.position.x, previous.x, targetX, delta)
     camera.position.y = followMovingTarget(camera.position.y, previous.y, targetY, delta)
-    camera.position.z = followMovingTarget(camera.position.z, previous.z, targetZ, delta)
+    camera.position.z = followCarOffset(camera.position.z, previous.z, targetZ, delta)
     previous.x = targetX; previous.y = targetY; previous.z = targetZ
 
     // Publish the current simulation position before environment frame callbacks.
