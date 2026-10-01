@@ -12,7 +12,7 @@ import {
   MeshStandardMaterial,
 } from 'three'
 import { geometryCache } from '../utils/geometryCache'
-import { HeroCarModel } from './CarModel'
+import ConceptCar from './ConceptCar'
 
 interface CarVisualProps {
   position?: [number, number, number]
@@ -43,15 +43,7 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
     if (tripleRocketActive) return '#ff6600' // Orange when triple rocket active
     if (spreadShotActive) return '#ffff00' // Yellow when spread shot active
     if (isBoosted) return '#00ff00' // Green when boosted
-    return '#b51f66' // Candy-magenta paint; the lights provide the glow
-  }
-
-  const getAccentColor = () => {
-    if (isColliding) return '#ffffff'
-    if (tripleRocketActive) return '#ffb300'
-    if (spreadShotActive) return '#ffff80'
-    if (isBoosted) return '#80ff80'
-    return '#00f0ff' // Cyan trim
+    return '#9c163b' // Accepted car-study paint; preserve authored flake normal.
   }
 
   // --- Materials (real THREE materials, memoized) ---
@@ -60,7 +52,7 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
       new MeshPhysicalMaterial({
         color: getCarColor(),
         emissive: getCarColor(),
-        emissiveIntensity: isColliding ? 1.2 : 0.035,
+        emissiveIntensity: isColliding ? 1.2 : 0,
         metalness: 0.5,
         roughness: 0.3,
         clearcoat: 1.0,          // wet-look clearcoat — picks up the HDRI sunset
@@ -110,27 +102,18 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
     []
   )
 
-  const headlightMaterial = useMemo(
-    () =>
-      new MeshStandardMaterial({
-        color: '#eaffff',
-        emissive: '#bffcff',
-        emissiveIntensity: 2.0,
-        toneMapped: false,
-      }),
-    []
-  )
-
-  const underglowGeometry = useMemo(() => new PlaneGeometry(4.4, 6.4), [])
+  // Small ambient-occlusion footprint, supplementing the actual sun shadow.
+  // The former cyan ring hid the wheel/road contact and made the car float.
+  const underglowGeometry = useMemo(() => new PlaneGeometry(2.0, 3.65), [])
   const underglowTexture = useMemo(() => {
     const canvas = document.createElement('canvas')
     canvas.width = canvas.height = 128
     const ctx = canvas.getContext('2d')!
     const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64)
-    gradient.addColorStop(0, 'rgba(0,0,0,0.6)')
-    gradient.addColorStop(0.35, 'rgba(0,0,0,0.45)')
-    gradient.addColorStop(0.58, 'rgba(255,255,255,0.22)')
-    gradient.addColorStop(0.78, 'rgba(255,255,255,0.04)')
+    gradient.addColorStop(0, 'rgba(255,255,255,0.65)')
+    gradient.addColorStop(0.45, 'rgba(255,255,255,0.48)')
+    gradient.addColorStop(0.7, 'rgba(255,255,255,0.13)')
+    gradient.addColorStop(0.88, 'rgba(255,255,255,0.02)')
     gradient.addColorStop(1, 'rgba(255,255,255,0)')
     ctx.fillStyle = gradient
     ctx.fillRect(0, 0, 128, 128)
@@ -141,10 +124,10 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
   const underglowMaterial = useMemo(
     () =>
       new MeshBasicMaterial({
-        color: getAccentColor(),
+        color: '#03050a',
         transparent: true,
         map: underglowTexture,
-        opacity: 0.85,
+        opacity: 0.7,
         depthWrite: false,
         toneMapped: false,
       }),
@@ -186,17 +169,17 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
 
   useEffect(() => {
     return () => {
-      ;[glassMaterial, tireMaterial, rimMaterial, tailMaterial, headlightMaterial, trailMaterial].forEach(m => m.dispose())
+      ;[glassMaterial, tireMaterial, rimMaterial, tailMaterial, trailMaterial].forEach(m => m.dispose())
     }
-  }, [glassMaterial, tireMaterial, rimMaterial, tailMaterial, headlightMaterial, trailMaterial])
+  }, [glassMaterial, tireMaterial, rimMaterial, tailMaterial, trailMaterial])
 
   // Hover bob + exhaust pulse + taillight trails (visual only)
   useFrame(({ clock }) => {
     const t = clock.elapsedTime
     if (bobRef.current) {
-      bobRef.current.position.y = Math.sin(t * 2.1) * 0.045
-      bobRef.current.rotation.z = Math.sin(t * 1.4) * 0.008
-      bobRef.current.rotation.x = Math.sin(t * 1.7) * 0.006
+      bobRef.current.position.y = 0
+      bobRef.current.rotation.z = 0
+      bobRef.current.rotation.x = 0
     }
     const pulse = (isBoosted ? 1.15 : 0.7) + Math.sin(t * (isBoosted ? 18 : 7)) * 0.15
     if (exhaustLeftRef.current) exhaustLeftRef.current.scale.set(0.35 * pulse, 0.25 * pulse, 0.85 * pulse)
@@ -220,17 +203,12 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
       <group ref={bobRef}>
         {/* Downloaded GLB hero body ('80s wedge) — materials assigned by role
             so collision/boost recolors keep working */}
-        <HeroCarModel
+        <ConceptCar
           bodyMaterial={bodyMaterial}
-          glassMaterial={glassMaterial}
-          tireMaterial={tireMaterial}
-          rimMaterial={rimMaterial}
-          tailMaterial={tailMaterial}
         />
 
-        {/* Headlights (the GLB's own front lenses are plain glass — add neon) */}
-        <mesh position={[-0.55, 0.5, -2.18]} geometry={geometryCache.getGeometry('car-headlight')} material={headlightMaterial} />
-        <mesh position={[0.55, 0.5, -2.18]} geometry={geometryCache.getGeometry('car-headlight')} material={headlightMaterial} />
+        {/* The authored car supplies its own lamps. Legacy wedge headlights
+            sat outside this model's bounds and appeared to float in front. */}
 
         {/* Taillight light streaks (stretch with speed) */}
         <mesh ref={trailLeftRef} position={[-0.5, 0.6, 2.3]} geometry={geometryCache.getGeometry('car-trail')} material={trailMaterial} visible={false} />
@@ -240,9 +218,9 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
         <mesh ref={exhaustLeftRef} position={[-0.5, 0.45, 2.26]} geometry={geometryCache.getGeometry('triple-rocket-indicator')} material={exhaustMaterial} />
         <mesh ref={exhaustRightRef} position={[0.5, 0.45, 2.26]} geometry={geometryCache.getGeometry('triple-rocket-indicator')} material={exhaustMaterial} />
 
-        {/* Underglow */}
+        {/* Contact darkening; keep the authored tires planted on the road. */}
         <mesh
-          position={[0, -0.42, 0]}
+          position={[0, -0.498, 0]}
           rotation={[-Math.PI / 2, 0, 0]}
           geometry={underglowGeometry}
           material={underglowMaterial}

@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import { AdditiveBlending, DoubleSide, Group, MeshBasicMaterial, MeshStandardMaterial } from 'three'
 import { geometryCache } from '../utils/geometryCache'
 import { roadYawAt } from '../utils/roadCurve'
-import { EnemyCarModel, ENEMY_VARIANT_COUNT } from './CarModel'
+import { ConceptTraffic } from './ConceptCar'
 
 interface ObstacleProps {
   position: [number, number, number]
@@ -19,7 +19,7 @@ function variantFromId(id: string): number {
   for (let i = 0; i < id.length; i++) {
     h = (h * 31 + id.charCodeAt(i)) | 0
   }
-  return Math.abs(h) % ENEMY_VARIANT_COUNT
+  return Math.abs(h) % 6
 }
 
 // ---------------------------------------------------------------------------
@@ -157,7 +157,7 @@ function Obstacle({ position, type, velocity, obstacleId }: ObstacleProps) {
       const variant = variantFromId(obstacleId ?? `${position[0]}:${position[2]}`)
       return (
         <group position={position} rotation={[0, (oncoming ? Math.PI : 0) + yaw, 0]}>
-          <EnemyCarModel variant={variant} />
+          <ConceptTraffic variant={variant} />
         </group>
       )
     }

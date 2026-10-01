@@ -2,7 +2,8 @@ import { useState, useCallback, useEffect, useRef, memo } from 'react'
 import { DirectionalLight, Object3D } from 'three'
 import { Environment } from '@react-three/drei'
 import Car from './Car'
-import SmoothRoad from './SmoothRoad'
+import PhysicalRoad from './PhysicalRoad'
+import Roadside from './Roadside'
 import ObstacleManager from './ObstacleManager'
 import ExplosionEffect from './ExplosionEffect'
 import RetrowaveSun from './RetrowaveSun'
@@ -10,7 +11,6 @@ import Sky from './Sky'
 import Mountains from './Mountains'
 import CitySkyline from './CitySkyline'
 import Bloom from './Bloom'
-import WetRoad from './WetRoad'
 import FlashLights from './FlashLights'
 import FpsProbe from './FpsProbe'
 import { acceptsGameplayKey } from '../utils/controls'
@@ -51,11 +51,10 @@ function Scene() {
   const [missiles, setMissiles] = useState<Missile[]>([])
   const [missileExplosions, setMissileExplosions] = useState<MissileExplosion[]>([])
   const [score, setScore] = useState(0)
-  // Wet road costs a full extra scene render per frame — OFF by default,
-  // toggle with T (A/B for frame rate)
+  // T switches physical roughness and clearcoat on the existing surface.
   const [wetRoadEnabled, setWetRoadEnabled] = useState(false)
 
-  // T toggles the wet reflective road layer (perf A/B switch)
+  // T toggles the wet finish (no additional full-scene render).
   useEffect(() => {
     const handleToggle = (event: KeyboardEvent) => {
       if (event.code === 'KeyT' && !event.repeat && acceptsGameplayKey(event)) {
@@ -250,18 +249,21 @@ function Scene() {
       <fog attach="fog" args={['#160527', 80, 250]} />
       <Sky />
       {/* Image-based lighting: real reflections on the metal/paint (sky stays procedural) */}
-      <Environment files="/hdri/venice_sunset_1k.hdr" background={false} />
+      <Environment files="/hdri/venice_sunset_2k.hdr" background={false} environmentIntensity={0.85} environmentRotation={[0, 1.1, 0]} />
       <Bloom />
 
       {/* Lighting rig — violet sky bounce + warm sun key + neon rim lights */}
       <ambientLight intensity={0.18} color="#8a7bff" />
       <hemisphereLight args={['#3b1b6e', '#0a0510', 0.6]} />
-      <group position={[0, 0, carPosition.z]}>
+      <group position={[carPosition.x, 0, carPosition.z]}>
         <directionalLight
           ref={sunLightRef}
           position={[14, 26, -50]}
           intensity={1.25}
           color="#ff9a5c"
+          castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.00015} shadow-normalBias={0.025}
+          shadow-camera-left={-52} shadow-camera-right={52} shadow-camera-top={52} shadow-camera-bottom={-52}
+          shadow-camera-near={1} shadow-camera-far={220} shadow-intensity={0.65}
         />
         <object3D ref={sunTargetRef} position={[0, 0, 10]} />
         {/* Neon rim lights flanking the road near the car */}
@@ -279,8 +281,8 @@ function Scene() {
       <RetrowaveSun carZ={carPosition.z} />
       <Mountains carZ={carPosition.z} />
       <CitySkyline carZ={carPosition.z} />
-      <SmoothRoad carZ={carPosition.z} carX={carPosition.x} />
-      {wetRoadEnabled && <WetRoad carZ={carPosition.z} />}
+      <PhysicalRoad carZ={carPosition.z} wet={wetRoadEnabled} />
+      <Roadside carZ={carPosition.z} />
       <ObstacleManager 
         carPosition={carPosition} 
         obstacles={obstacles}
