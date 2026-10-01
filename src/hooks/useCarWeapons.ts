@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 
 interface UseCarWeaponsProps {
   score: number
@@ -16,6 +16,7 @@ export interface WeaponState {
 }
 
 export function useCarWeapons({ score, onShoot, onSpreadShoot, onMissileShoot }: UseCarWeaponsProps) {
+  const visualFeedback=useRef({plasmaAt:-10000,rocketAt:-10000})
   // Weapon timing state
   const [lastShotTime, setLastShotTime] = useState(0)
   const [lastMissileTime, setLastMissileTime] = useState(0)
@@ -52,7 +53,8 @@ export function useCarWeapons({ score, onShoot, onSpreadShoot, onMissileShoot }:
     carRotation: number,
     carVelocity: number
   ) => {
-    const startPosition: [number, number, number] = [carPosition.x, 1, carPosition.z]
+    // Emit from the new forward rail muzzle; timing, velocity and damage stay intact.
+    const startPosition: [number, number, number] = [carPosition.x-Math.sin(carRotation)*1.7, 1, carPosition.z-Math.cos(carRotation)*1.7]
     
     if (spreadShotActive && onSpreadShoot) {
       // Spread shot mode: reduced cooldown between bursts (400ms)
@@ -68,6 +70,7 @@ export function useCarWeapons({ score, onShoot, onSpreadShoot, onMissileShoot }:
           angle: carRotation + angleOffset,
           carVelocity
         }))
+        visualFeedback.current.plasmaAt=currentTime
         onSpreadShoot(shots)
         setLastShotTime(currentTime)
       }
@@ -75,6 +78,7 @@ export function useCarWeapons({ score, onShoot, onSpreadShoot, onMissileShoot }:
       // Normal single shot mode: faster cooldown (300ms)
       const normalShotCooldown = 300
       if (currentTime - lastShotTime > normalShotCooldown) {
+        visualFeedback.current.plasmaAt=currentTime
         onShoot(startPosition, carRotation, carVelocity)
         setLastShotTime(currentTime)
       }
@@ -91,6 +95,7 @@ export function useCarWeapons({ score, onShoot, onSpreadShoot, onMissileShoot }:
     const missileCooldown = 800 // 0.8 seconds between missiles (original timing)
     
     if (missilesRemaining > 0 && currentTime - lastMissileTime > missileCooldown && onMissileShoot) {
+      visualFeedback.current.rocketAt=currentTime
       if (tripleRocketActive) {
         // Fire 3 missiles with spread when in triple rocket mode
         const spreadAngles = [-0.15, 0, 0.15] // Spread pattern for triple rockets
@@ -139,6 +144,7 @@ export function useCarWeapons({ score, onShoot, onSpreadShoot, onMissileShoot }:
   })
 
   return {
+    visualFeedback,
     // State
     spreadShotActive,
     missilesRemaining,

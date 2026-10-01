@@ -3,56 +3,22 @@ import { useFrame } from '@react-three/fiber'
 import {
   Group,
   Vector3,
-  CylinderGeometry,
+  Mesh,
   ConeGeometry,
-  BoxGeometry,
-  SphereGeometry,
-  MeshStandardMaterial,
+  AdditiveBlending,
 } from 'three'
 
 import { ObstacleData } from '../utils/collision'
 import MissileTrail from './MissileTrail'
+import { MISSILE_BATCHES } from './CombatAssets'
+import { MeshBasicMaterial } from 'three'
+const PLUME_MAT=new MeshBasicMaterial({color:'#ffe3ae',transparent:true,opacity:.85,depthWrite:false,blending:AdditiveBlending,toneMapped:false})
+const PLUME_GEO=new ConeGeometry(.13,1.05,12)
 
 // Re-use across frames to avoid GC churn
 const UP_VECTOR = new Vector3(0, 1, 0)
 const SCRATCH_VECTOR = new Vector3()
 const SCRATCH_DIRECTION = new Vector3()
-// Pre-create geometries and materials to avoid runtime allocations and shader compile hitches
-const MISSILE_BODY_GEO = new CylinderGeometry(0.15, 0.3, 1.5)
-const MISSILE_BODY_MAT = new MeshStandardMaterial({
-  color: '#2a1420',
-  emissive: '#ff7a1a',
-  emissiveIntensity: 0.45,
-  metalness: 0.7,
-  roughness: 0.3,
-})
-
-const MISSILE_NOSE_GEO = new ConeGeometry(0.15, 0.5)
-const MISSILE_NOSE_MAT = new MeshStandardMaterial({
-  color: '#fff3d0',
-  emissive: '#ffb300',
-  emissiveIntensity: 1.6,
-  toneMapped: false,
-})
-
-const FIN_GEO = new BoxGeometry(0.1, 0.4, 0.05)
-const FIN_MAT = new MeshStandardMaterial({
-  color: '#ff7a1a',
-  emissive: '#ff4400',
-  emissiveIntensity: 0.6,
-})
-
-const THRUSTER_GEO = new SphereGeometry(0.3)
-const THRUSTER_MAT = new MeshStandardMaterial({
-  color: '#ffe9a8',
-  emissive: '#ff9a3c',
-  emissiveIntensity: 2.4,
-  transparent: true,
-  opacity: 0.9,
-  toneMapped: false,
-})
-
-
 interface AreaMissileProps {
   position: [number, number, number]
   angle: number
@@ -75,6 +41,7 @@ function AreaMissile({
   // Toggle to quickly enable / disable the visual trail for debugging
   const ENABLE_TRAIL = true;
   const missileRef = useRef<Group>(null)
+  const plumeRef = useRef<Mesh>(null)
   const [isExploded, setIsExploded] = useState(false)
   const lifeTimeRef = useRef(0) // Track total time in flight to catch silent failures
   const positionRef = useRef(new Vector3(...position))
@@ -125,6 +92,7 @@ function AreaMissile({
     if (isExploded || !missileRef.current) return
 
     frameCountRef.current++
+    if(plumeRef.current){const k=1+Math.sin(lifeTimeRef.current*75)*.10;plumeRef.current.scale.set(k, k, k)}
 
     // Update missile position
     positionRef.current.add(
@@ -233,22 +201,12 @@ function AreaMissile({
       {ENABLE_TRAIL && (
         <MissileTrail
           missilePosition={positionRef.current}
-          isActive={!isExploded && positionRef.current.y > 2.5}
+          isActive={!isExploded}
         />
       )}
-      <group ref={missileRef} frustumCulled={false}>
-      {/* Main missile body */}
-      <mesh position={[0, 0, 0]} frustumCulled={false} geometry={MISSILE_BODY_GEO} material={MISSILE_BODY_MAT} />
-
-      {/* Missile nose cone */}
-      <mesh position={[0, 0.75, 0]} frustumCulled={false} geometry={MISSILE_NOSE_GEO} material={MISSILE_NOSE_MAT} />
-
-      {/* Missile fins */}
-      <mesh position={[0.3, -0.5, 0]} rotation={[0, 0, Math.PI / 4]} frustumCulled={false} geometry={FIN_GEO} material={FIN_MAT} />
-      <mesh position={[-0.3, -0.5, 0]} rotation={[0, 0, -Math.PI / 4]} frustumCulled={false} geometry={FIN_GEO} material={FIN_MAT} />
-
-      {/* Thruster glow */}
-      <mesh position={[0, -1, 0]} frustumCulled={false} geometry={THRUSTER_GEO} material={THRUSTER_MAT} />
+      <group ref={missileRef} frustumCulled={false} dispose={null}>
+      {MISSILE_BATCHES.map((b,i)=><mesh key={i} geometry={b.geometry} material={b.material} />)}
+      <mesh ref={plumeRef} position={[0,-1.22,0]} rotation={[Math.PI,0,0]} geometry={PLUME_GEO} material={PLUME_MAT}/>
     </group>
     </>
   )

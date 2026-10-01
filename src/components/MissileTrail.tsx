@@ -1,148 +1,27 @@
 import { useRef, useMemo, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
-import {
-  Group,
-  Vector3,
-  BufferGeometry,
-  BufferAttribute,
-  InstancedMesh,
-  Matrix4,
-  SphereGeometry,
-  MeshStandardMaterial,
-  Quaternion,
-} from 'three'
-
-interface MissileTrailProps {
-  missilePosition: Vector3
-  isActive: boolean
-}
-
-const MAX_TRAIL_POINTS = 20
-
-function MissileTrail({ missilePosition, isActive }: MissileTrailProps) {
-  const trailRef = useRef<Group>(null)
-  const frameCountRef = useRef(0)
-  const instancedRef = useRef<InstancedMesh>(null)
-  const scratchMatrix = useMemo(() => new Matrix4(), [])
-  const scratchPosition = useMemo(() => new Vector3(), [])
-  const scratchScale = useMemo(() => new Vector3(1, 1, 1), [])
-  const scratchQuaternion = useMemo(() => new Quaternion(), [])
-  const ringBuffer = useMemo(() => new Float32Array(MAX_TRAIL_POINTS * 3), [])
-  const headRef = useRef(-1)
-  const countRef = useRef(0)
-  
-  // Create geometry with dynamic positions
-  const lineGeometry = useMemo(() => {
-    const geo = new BufferGeometry()
-    const positions = new Float32Array(MAX_TRAIL_POINTS * 3)
-    geo.setAttribute('position', new BufferAttribute(positions, 3))
-    return geo
-  }, [])
-
-  const sphereGeometry = useMemo(() => new SphereGeometry(0.15), [])
-  const sphereMaterial = useMemo(
-    () =>
-      new MeshStandardMaterial({
-        color: '#ffd2a8',
-        emissive: '#ff7a1a',
-        emissiveIntensity: 2,
-        transparent: true,
-        opacity: 0.85,
-        toneMapped: false,
-      }),
-    []
-  )
-
-  // Release GPU resources when the missile unmounts
-  useEffect(() => {
-    return () => {
-      lineGeometry.dispose()
-      sphereGeometry.dispose()
-      sphereMaterial.dispose()
+import { AdditiveBlending, Color, CylinderGeometry, InstancedMesh, Matrix4, MeshBasicMaterial, Quaternion, Vector3 } from 'three'
+const COUNT=28, UP=new Vector3(0,1,0)
+const GEO=new CylinderGeometry(1,1,1,6,1,true)
+const MAT=new MeshBasicMaterial({color:'#ffbd72',transparent:true,opacity:.48,blending:AdditiveBlending,depthWrite:false,toneMapped:false})
+function MissileTrail({missilePosition,isActive}:{missilePosition:Vector3;isActive:boolean}) {
+  const mesh=useRef<InstancedMesh>(null), head=useRef(-1), count=useRef(0), elapsed=useRef(0)
+  const points=useMemo(()=>Array.from({length:COUNT},()=>new Vector3()),[])
+  const scratch=useMemo(()=>({mid:new Vector3(),dir:new Vector3(),scale:new Vector3(),q:new Quaternion(),m:new Matrix4(),c:new Color()}),[])
+  useEffect(()=>{const current=mesh.current;return()=>{current?.dispose()}},[])
+  useFrame((_,delta)=>{
+    if(!mesh.current)return
+    elapsed.current+=delta
+    if(isActive&&elapsed.current>=1/90){elapsed.current=0;head.current=(head.current+1)%COUNT;points[head.current].copy(missilePosition);count.current=Math.min(COUNT,count.current+1)}
+    const n=Math.max(0,count.current-1);mesh.current.count=n
+    for(let i=0;i<n;i++){
+      const a=points[(head.current-i+COUNT)%COUNT], b=points[(head.current-i-1+COUNT)%COUNT]
+      scratch.dir.subVectors(a,b);const length=scratch.dir.length();scratch.q.setFromUnitVectors(UP,scratch.dir.normalize());scratch.mid.copy(a).add(b).multiplyScalar(.5)
+      const width=.085*Math.pow(1-i/COUNT,1.4);scratch.scale.set(width,Math.max(.001,length*1.03),width);scratch.m.compose(scratch.mid,scratch.q,scratch.scale);mesh.current.setMatrixAt(i,scratch.m)
+      scratch.c.setRGB(1, .26+.5*(1-i/COUNT), .08+.35*(1-i/COUNT));mesh.current.setColorAt(i,scratch.c)
     }
-  }, [lineGeometry, sphereGeometry, sphereMaterial])
-
-  useFrame(() => {
-    if (!isActive || !trailRef.current) return
-
-    frameCountRef.current++
-    
-    // Update trail every 2 frames for performance
-    if (frameCountRef.current % 2 === 0) {
-      // Write to ring buffer (avoid allocations)
-      headRef.current = (headRef.current + 1) % MAX_TRAIL_POINTS
-      const head = headRef.current
-      ringBuffer[head * 3] = missilePosition.x
-      ringBuffer[head * 3 + 1] = missilePosition.y
-      ringBuffer[head * 3 + 2] = missilePosition.z
-      if (countRef.current < MAX_TRAIL_POINTS) countRef.current += 1
-      
-      // Update geometry positions
-      const positions = lineGeometry.attributes.position.array as Float32Array
-      const count = countRef.current
-      for (let i = 0; i < MAX_TRAIL_POINTS; i++) {
-        const srcIndex = (headRef.current - i + MAX_TRAIL_POINTS) % MAX_TRAIL_POINTS
-        const dest = i * 3
-        if (i < count) {
-          positions[dest] = ringBuffer[srcIndex * 3]
-          positions[dest + 1] = ringBuffer[srcIndex * 3 + 1]
-          positions[dest + 2] = ringBuffer[srcIndex * 3 + 2]
-        } else {
-          // duplicate last written position to avoid wild segments
-          positions[dest] = positions[(dest - 3 + positions.length) % positions.length]
-          positions[dest + 1] = positions[(dest - 3 + positions.length) % positions.length + 1]
-          positions[dest + 2] = positions[(dest - 3 + positions.length) % positions.length + 2]
-        }
-      }
-      
-      lineGeometry.attributes.position.needsUpdate = true
-
-      // Update instanced particle transforms (no React state)
-      const mesh = instancedRef.current
-      if (mesh) {
-        for (let i = 0; i < MAX_TRAIL_POINTS; i++) {
-          if (i < count) {
-            // Fade scale along the trail
-            const t = 1 - i / MAX_TRAIL_POINTS
-            const srcIndex = (headRef.current - i + MAX_TRAIL_POINTS) % MAX_TRAIL_POINTS
-            const px = ringBuffer[srcIndex * 3]
-            const py = ringBuffer[srcIndex * 3 + 1]
-            const pz = ringBuffer[srcIndex * 3 + 2]
-            scratchPosition.set(px, py, pz)
-            scratchScale.set(0.2 * t, 0.2 * t, 0.2 * t)
-            scratchMatrix.compose(scratchPosition, scratchQuaternion, scratchScale)
-            mesh.setMatrixAt(i, scratchMatrix)
-          } else {
-            // Move unused instances out of view
-            scratchMatrix.makeTranslation(0, -9999, 0)
-            mesh.setMatrixAt(i, scratchMatrix)
-          }
-        }
-        mesh.instanceMatrix.needsUpdate = true
-      }
-    }
+    mesh.current.instanceMatrix.needsUpdate=true;if(mesh.current.instanceColor)mesh.current.instanceColor.needsUpdate=true
   })
-
-  if (!isActive) return null
-
-  return (
-    <group ref={trailRef}>
-      <lineSegments geometry={lineGeometry}>
-        <lineBasicMaterial
-          color="#ff9a3c"
-          transparent
-          opacity={0.75}
-          linewidth={2}
-          toneMapped={false}
-        />
-      </lineSegments>
-      <instancedMesh
-        ref={instancedRef}
-        args={[sphereGeometry, sphereMaterial, MAX_TRAIL_POINTS]}
-        frustumCulled={false}
-      />
-    </group>
-  )
+  return <instancedMesh ref={mesh} args={[GEO,MAT,COUNT]} frustumCulled={false} dispose={null} />
 }
-
 export default MissileTrail

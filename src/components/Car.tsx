@@ -306,6 +306,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
         isBoosted={powerups.isBoosted}
         tripleRocketActive={weapons.tripleRocketActive}
         speedRef={physics.speedRef}
+        weaponFeedback={weapons.visualFeedback}
       />
       {/* Boost speed streaks — reads physics refs directly, zero re-renders */}
       <SpeedLines speedRef={physics.speedRef} carPositionRef={physics.carPositionRef} />

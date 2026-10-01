@@ -13,6 +13,8 @@ import {
 } from 'three'
 import { geometryCache } from '../utils/geometryCache'
 import ConceptCar from './ConceptCar'
+import CarArsenal from './CarArsenal'
+import type { WeaponFeedback } from './CarArsenal'
 
 interface CarVisualProps {
   position?: [number, number, number]
@@ -21,6 +23,7 @@ interface CarVisualProps {
   isBoosted: boolean
   tripleRocketActive?: boolean
   speedRef?: MutableRefObject<number>
+  weaponFeedback?: MutableRefObject<WeaponFeedback>
 }
 
 const CarVisual = forwardRef<Group, CarVisualProps>(({
@@ -29,7 +32,8 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
   spreadShotActive,
   isBoosted,
   tripleRocketActive = false,
-  speedRef
+  speedRef,
+  weaponFeedback
 }, ref) => {
   const bobRef = useRef<Group>(null)
   const exhaustLeftRef = useRef<any>(null)
@@ -226,20 +230,7 @@ const CarVisual = forwardRef<Group, CarVisualProps>(({
           material={underglowMaterial}
         />
 
-        {/* Triple rocket mode indicator - 3 orange glows on the car */}
-        {tripleRocketActive && (
-          <>
-            <mesh position={[-0.5, 1.25, -1.5]} geometry={geometryCache.getGeometry('triple-rocket-indicator')}>
-              <meshStandardMaterial color="#ff6600" emissive="#ff3300" emissiveIntensity={2} transparent opacity={0.9} toneMapped={false} />
-            </mesh>
-            <mesh position={[0, 1.25, -1.5]} geometry={geometryCache.getGeometry('triple-rocket-indicator')}>
-              <meshStandardMaterial color="#ff6600" emissive="#ff3300" emissiveIntensity={2} transparent opacity={0.9} toneMapped={false} />
-            </mesh>
-            <mesh position={[0.5, 1.25, -1.5]} geometry={geometryCache.getGeometry('triple-rocket-indicator')}>
-              <meshStandardMaterial color="#ff6600" emissive="#ff3300" emissiveIntensity={2} transparent opacity={0.9} toneMapped={false} />
-            </mesh>
-          </>
-        )}
+        <CarArsenal feedback={weaponFeedback} triple={tripleRocketActive} />
       </group>
     </group>
   )

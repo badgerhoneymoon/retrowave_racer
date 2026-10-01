@@ -4,6 +4,7 @@ import { AdditiveBlending, DoubleSide, Group, MeshBasicMaterial, MeshStandardMat
 import { geometryCache } from '../utils/geometryCache'
 import { roadYawAt } from '../utils/roadCurve'
 import { ConceptTraffic } from './ConceptCar'
+import { CRADLE_BATCHES, MISSILE_BATCHES } from './CombatAssets'
 
 interface ObstacleProps {
   position: [number, number, number]
@@ -162,44 +163,18 @@ function Obstacle({ position, type, velocity, obstacleId }: ObstacleProps) {
       )
     }
 
-    case 'rocket_launcher': {
-      // Holo-crate: missile ammo pickup
-      return (
-        <group position={position}>
-          {/* Light column marking the pickup */}
-          <mesh position={[0, 1.6, 0]} geometry={geometryCache.getGeometry('pickup-beam')} material={MAT.beamOrange} />
-          <group ref={spinRef}>
-            <mesh geometry={geometryCache.getGeometry('holo-crate')} material={MAT.crateOrange} />
-            <mesh geometry={geometryCache.getGeometry('holo-crate')} scale={[1.12, 1.12, 1.12]} material={MAT.crateOrangeWire} />
-            {/* Missile icon above the crate */}
-            <group position={[0, 0.95, 0]}>
-              <mesh geometry={geometryCache.getGeometry('missile-body')} material={MAT.missileIcon} />
-              <mesh position={[0, 0.95, 0]} geometry={geometryCache.getGeometry('missile-nose')} material={MAT.missileNoseIcon} />
-            </group>
-          </group>
-          <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]} geometry={geometryCache.getGeometry('holo-ring')} material={MAT.holoRingOrange} />
-        </group>
-      )
-    }
-
+    case 'rocket_launcher':
     case 'triple_rocket': {
-      // Holo-crate: triple rocket mode pickup
-      return (
-        <group position={position}>
-          <mesh position={[0, 1.6, 0]} geometry={geometryCache.getGeometry('pickup-beam')} material={MAT.beamMagenta} />
-          <group ref={spinRef}>
-            <mesh geometry={geometryCache.getGeometry('holo-crate')} material={MAT.crateMagenta} />
-            <mesh geometry={geometryCache.getGeometry('holo-crate')} scale={[1.12, 1.12, 1.12]} material={MAT.crateMagentaWire} />
-            {/* Triple rocket icon */}
-            {[-0.32, 0, 0.32].map((x, i) => (
-              <group key={i} position={[x, 0.9 + (i === 1 ? 0.15 : 0), 0]}>
-                <mesh geometry={geometryCache.getGeometry('missile-body')} scale={[0.6, 0.6, 0.6]} material={MAT.tripleIcon} />
-              </group>
-            ))}
-          </group>
-          <mesh position={[0, 0.06, 0]} rotation={[-Math.PI / 2, 0, 0]} geometry={geometryCache.getGeometry('holo-ring')} material={MAT.holoRingMagenta} />
+      const triple=type==='triple_rocket'
+      return <group position={position} dispose={null}>
+        <group ref={spinRef}>
+          {CRADLE_BATCHES.map((b,i)=><mesh key={i} geometry={b.geometry} material={b.material} castShadow receiveShadow />)}
+          {(triple?[-.34,0,.34]:[0]).map((x,i)=><group key={i} position={[x,.14,0]} rotation={[Math.PI/2,0,0]} scale={triple?.58:.77}>
+            {MISSILE_BATCHES.map((b,j)=><mesh key={j} geometry={b.geometry} material={b.material} />)}
+          </group>)}
         </group>
-      )
+        <mesh position={[0,-.45,0]} rotation={[-Math.PI/2,0,0]} geometry={geometryCache.getGeometry('holo-ring')} material={triple?MAT.holoRingMagenta:MAT.holoRingOrange}/>
+      </group>
     }
 
     default:

@@ -1,7 +1,15 @@
 import { useRef, memo, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { AdditiveBlending, Group } from 'three'
-import { geometryCache } from '../utils/geometryCache'
+import { AdditiveBlending, Group, CylinderGeometry, PlaneGeometry, MeshBasicMaterial, ShaderMaterial } from 'three'
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
+const CORE=new CylinderGeometry(.045,.045,1.9,8);CORE.rotateX(Math.PI/2)
+const CORE_MAT=new MeshBasicMaterial({color:'#d9fcff',toneMapped:false})
+const HORIZONTAL=new PlaneGeometry(.42,4);HORIZONTAL.rotateX(-Math.PI/2);HORIZONTAL.translate(0,0,1.05)
+const VERTICAL=HORIZONTAL.clone();VERTICAL.rotateZ(Math.PI/2)
+const WAKE=mergeGeometries([HORIZONTAL,VERTICAL])!;HORIZONTAL.dispose();VERTICAL.dispose()
+const WAKE_MAT=new ShaderMaterial({transparent:true,depthWrite:false,blending:AdditiveBlending,side:2,
+ vertexShader:`varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,
+ fragmentShader:`varying vec2 vUv;void main(){float edge=pow(max(0.,1.-abs(vUv.x-.5)*2.),2.);float tail=pow(vUv.y,1.6);gl_FragColor=vec4(.08,.6,1.,edge*tail*.7);}`})
 
 interface PlasmaProjectileProps {
   position: [number, number, number]
@@ -69,33 +77,9 @@ function PlasmaProjectile({ position, angle, carVelocity, onHit, onExpire, proje
   })
 
   return (
-    <group ref={projectileRef} position={position} rotation={[0, angle, 0]}>
-      {/* White-hot elongated core */}
-      <mesh scale={[0.55, 0.55, 2.6]} geometry={geometryCache.getGeometry('plasma-core')}>
-        <meshBasicMaterial color="#eaffff" toneMapped={false} />
-      </mesh>
-      {/* Inner cyan glow */}
-      <mesh scale={[0.9, 0.9, 2.2]} geometry={geometryCache.getGeometry('plasma-glow')}>
-        <meshBasicMaterial
-          color="#00f0ff"
-          transparent
-          opacity={0.55}
-          blending={AdditiveBlending}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </mesh>
-      {/* Outer halo */}
-      <mesh scale={[1.5, 1.5, 1.8]} geometry={geometryCache.getGeometry('plasma-glow')}>
-        <meshBasicMaterial
-          color="#7b2fff"
-          transparent
-          opacity={0.22}
-          blending={AdditiveBlending}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </mesh>
+    <group ref={projectileRef} position={position} rotation={[0, angle, 0]} dispose={null}>
+      <mesh geometry={CORE} material={CORE_MAT} />
+      <mesh geometry={WAKE} material={WAKE_MAT} />
     </group>
   )
 }
