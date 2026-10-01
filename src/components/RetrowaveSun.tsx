@@ -1,3 +1,4 @@
+import { followMovingTarget, WorldPositionRef } from '../utils/motion'
 import { useMemo, useRef } from 'react'
 import { CanvasTexture, Group, LinearFilter } from 'three'
 import { useFrame } from '@react-three/fiber'
@@ -64,29 +65,30 @@ function createHaloTexture() {
 }
 
 interface RetrowaveSunProps {
-  carZ?: number
+  worldPositionRef: WorldPositionRef
 }
 
-function RetrowaveSun({ carZ = 0 }: RetrowaveSunProps) {
+function RetrowaveSun({ worldPositionRef }: RetrowaveSunProps) {
+  const previousTarget = useRef({ x: roadCenterAt(-140), y: 18, z: -140 })
   const sunRef = useRef<Group>(null)
   const texture = useMemo(createSunTexture, [])
   const haloTexture = useMemo(createHaloTexture, [])
 
   // Keep the sun a fixed distance ahead of the car (like the road) for smooth movement
-  useFrame(({ clock }) => {
+  useFrame(({ clock }, delta) => {
     if (!sunRef.current) return
 
     // Position sun far ahead on the horizon, following car smoothly.
     // It hangs over the road's vanishing point, so it sways with the curves.
-    const targetZ = carZ - 140 // Always 140 units ahead of car
+    const targetZ = worldPositionRef.current.z - 140 // Always 140 units ahead of car
     const targetX = roadCenterAt(targetZ)
     const targetY = 18 + Math.sin(clock.elapsedTime * 0.4) * 0.4 // Barely-there float
 
-    // Gentle interpolation to prevent any jerkiness (same as camera)
-    const sunLerpFactor = 0.1
-    sunRef.current.position.x += (targetX - sunRef.current.position.x) * sunLerpFactor
-    sunRef.current.position.y += (targetY - sunRef.current.position.y) * sunLerpFactor
-    sunRef.current.position.z += (targetZ - sunRef.current.position.z) * sunLerpFactor
+    const previous = previousTarget.current
+    sunRef.current.position.x = followMovingTarget(sunRef.current.position.x, previous.x, targetX, delta)
+    sunRef.current.position.y = followMovingTarget(sunRef.current.position.y, previous.y, targetY, delta)
+    sunRef.current.position.z = followMovingTarget(sunRef.current.position.z, previous.z, targetZ, delta)
+    previous.x = targetX; previous.y = targetY; previous.z = targetZ
   })
 
   return (

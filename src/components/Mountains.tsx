@@ -1,9 +1,10 @@
+import { followMovingTarget, WorldPositionRef } from '../utils/motion'
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { BufferGeometry, BufferAttribute, Group } from 'three'
 
 interface MountainsProps {
-  carZ?: number
+  worldPositionRef: WorldPositionRef
 }
 
 // Deterministic ridge profile — layered sines give jagged but smooth peaks
@@ -45,17 +46,19 @@ function buildRidgeGeometry(seed: number, base: number, amp: number, width: numb
   return geo
 }
 
-function Mountains({ carZ = 0 }: MountainsProps) {
+function Mountains({ worldPositionRef }: MountainsProps) {
+  const previousTarget = useRef(-175)
   const groupRef = useRef<Group>(null)
 
   const nearRidge = useMemo(() => buildRidgeGeometry(1.7, 6, 12, 500, 4), [])
   const farRidge = useMemo(() => buildRidgeGeometry(4.3, 10, 18, 600, 5), [])
 
   // Ridges ride the horizon, following the car smoothly (same easing as the sun)
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!groupRef.current) return
-    const targetZ = carZ - 175
-    groupRef.current.position.z += (targetZ - groupRef.current.position.z) * 0.1
+    const targetZ = worldPositionRef.current.z - 175
+    groupRef.current.position.z = followMovingTarget(groupRef.current.position.z, previousTarget.current, targetZ, delta)
+    previousTarget.current = targetZ
   })
 
   return (

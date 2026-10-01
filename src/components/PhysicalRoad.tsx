@@ -1,10 +1,12 @@
+import { WorldPositionRef } from '../utils/motion'
 import { memo, useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useTexture } from '@react-three/drei'
 import { BufferAttribute, Mesh, MeshPhysicalMaterial, PlaneGeometry, RepeatWrapping, ShaderChunk, SRGBColorSpace, Vector2 } from 'three'
 import { ROAD_HALF_WIDTH, roadCenterAt } from '../utils/roadCurve'
 
-export default memo(function PhysicalRoad({ carZ = 0, wet = false }: { carZ?: number; wet?: boolean }) {
+export default memo(function PhysicalRoad({ worldPositionRef, wet = false }: { worldPositionRef: WorldPositionRef; wet?: boolean }) {
+  const ground = useRef<Mesh>(null)
   const mesh = useRef<Mesh>(null), lastAnchor = useRef(NaN)
   const source = useTexture(['/textures/road007/Road007_1K-JPG_Color.jpg', '/textures/road007/Road007_1K-JPG_NormalGL.jpg', '/textures/road007/Road007_1K-JPG_Roughness.jpg'])
   const maps = useMemo(() => source.map((s, i) => {
@@ -50,6 +52,8 @@ export default memo(function PhysicalRoad({ carZ = 0, wet = false }: { carZ?: nu
   useEffect(() => () => material.dispose(), [material])
   useEffect(() => () => { geometry.dispose(); maps.forEach(t => t.dispose()) }, [geometry, maps])
   useFrame(() => {
+    const carZ = worldPositionRef.current.z
+    if (ground.current) ground.current.position.z = carZ - 210
     const anchor = Math.floor(carZ / 15) * 15
     if (anchor === lastAnchor.current || !mesh.current) return
     const position = geometry.attributes.position, uv = geometry.attributes.uv, coords = geometry.attributes.roadCoord
@@ -67,7 +71,7 @@ export default memo(function PhysicalRoad({ carZ = 0, wet = false }: { carZ?: nu
   })
   return <>
     <mesh ref={mesh} geometry={geometry} material={material} receiveShadow />
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.56, carZ - 210]} receiveShadow>
+    <mesh ref={ground} rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.56, -210]} receiveShadow>
       <planeGeometry args={[360, 540]} /><meshStandardMaterial color="#27242e" roughness={0.98} />
     </mesh>
   </>

@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef, memo } from 'react'
-import { DirectionalLight, Object3D } from 'three'
+import { useFrame } from '@react-three/fiber'
+import { DirectionalLight, Object3D, Group } from 'three'
 import { Environment } from '@react-three/drei'
 import Car from './Car'
 import PhysicalRoad from './PhysicalRoad'
@@ -44,6 +45,11 @@ interface MissileExplosion {
 }
 
 function Scene() {
+  const worldPositionRef = useRef({ x: 0, z: 0 })
+  const lightRigRef = useRef<Group>(null)
+  useFrame(() => {
+    if (lightRigRef.current) lightRigRef.current.position.set(worldPositionRef.current.x, 0, worldPositionRef.current.z)
+  })
   const [carPosition, setCarPosition] = useState({ x: 0, z: 0 })
   const [obstacles, setObstacles] = useState<ObstacleData[]>([])
   const [explosions, setExplosions] = useState<Explosion[]>([])
@@ -255,7 +261,7 @@ function Scene() {
       {/* Lighting rig — violet sky bounce + warm sun key + neon rim lights */}
       <ambientLight intensity={0.18} color="#8a7bff" />
       <hemisphereLight args={['#3b1b6e', '#0a0510', 0.6]} />
-      <group position={[carPosition.x, 0, carPosition.z]}>
+      <group ref={lightRigRef}>
         <directionalLight
           ref={sunLightRef}
           position={[14, 26, -50]}
@@ -278,17 +284,18 @@ function Scene() {
       {/* FPS readout → #fps-meter DOM node (direct DOM, no re-renders) */}
       <FpsProbe />
 
-      <RetrowaveSun carZ={carPosition.z} />
-      <Mountains carZ={carPosition.z} />
-      <CitySkyline carZ={carPosition.z} />
-      <PhysicalRoad carZ={carPosition.z} wet={wetRoadEnabled} />
-      <Roadside carZ={carPosition.z} />
+      <RetrowaveSun worldPositionRef={worldPositionRef} />
+      <Mountains worldPositionRef={worldPositionRef} />
+      <CitySkyline worldPositionRef={worldPositionRef} />
+      <PhysicalRoad worldPositionRef={worldPositionRef} wet={wetRoadEnabled} />
+      <Roadside worldPositionRef={worldPositionRef} />
       <ObstacleManager 
         carPosition={carPosition} 
         obstacles={obstacles}
         onObstaclesUpdate={handleObstaclesUpdate} 
       />
-      <Car 
+      <Car
+        worldPositionRef={worldPositionRef}
         position={[0, 0, 0]} 
         onPositionChange={setCarPosition}
         obstacles={obstacles}

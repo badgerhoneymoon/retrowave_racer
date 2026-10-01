@@ -1,3 +1,4 @@
+import { WorldPositionRef } from '../utils/motion'
 import { memo, useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { BufferAttribute, BufferGeometry, CanvasTexture, CatmullRomCurve3, CylinderGeometry, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, RepeatWrapping, SRGBColorSpace, TubeGeometry, Vector3 } from 'three'
@@ -26,7 +27,7 @@ function ribbon(){
  }
  const g=new BufferGeometry();g.setAttribute('position',new BufferAttribute(new Float32Array(positions),3));g.setAttribute('uv',new BufferAttribute(new Float32Array(uv),2));g.setIndex(indices);return g
 }
-export default memo(function Roadside({carZ=0}:{carZ?:number}){
+export default memo(function Roadside({worldPositionRef}:{worldPositionRef:WorldPositionRef}){
  const pavement=useRef<Mesh>(null),posts=useRef<InstancedMesh>(null),lenses=useRef<InstancedMesh>(null)
  const resources=useMemo(()=>{
   const maps=pavementMaps(),geometry=ribbon()
@@ -43,6 +44,7 @@ export default memo(function Roadside({carZ=0}:{carZ?:number}){
  useEffect(()=>()=>{resources.maps.forEach(t=>t.dispose());resources.geometry.dispose();resources.postGeometry.dispose();resources.lensGeometry.dispose();resources.pavementMaterial.dispose();resources.metalMaterial.dispose();resources.lensMaterial.dispose()},[resources])
  const last=useRef(NaN),scratch=useMemo(()=>new Matrix4(),[])
  useFrame(()=>{
+  const carZ=worldPositionRef.current.z
   const anchor=Math.floor(carZ/15)*15;if(anchor===last.current||!pavement.current)return;last.current=anchor
   const position=resources.geometry.attributes.position,uv=resources.geometry.attributes.uv,profile=[[19.1,-.49],[19.35,-.49],[19.35,-.23],[25.3,-.23],[25.3,-.52]]
   for(let i=0;i<position.count;i++){

@@ -8,10 +8,12 @@ import { useCarPowerups } from '../hooks/useCarPowerups'
 import { useCarHUD } from '../hooks/useCarHUD'
 import CarVisual from './CarVisual'
 import SpeedLines from './SpeedLines'
+import { followMovingTarget, WorldPositionRef } from '../utils/motion'
 import { toggleSound } from '../utils/audio'
 import { acceptsGameplayKey, HELD_BINDINGS, HeldAction } from '../utils/controls'
 
 interface CarProps {
+  worldPositionRef: WorldPositionRef
   position?: [number, number, number]
   onSpeedChange?: (speed: number) => void
   onPositionChange?: (position: { x: number, z: number }) => void
@@ -28,9 +30,10 @@ interface CarProps {
   onPlayerCrash?: (position: [number, number, number]) => void
 }
 
-function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacleCollected, onRewardCollected, onShoot, onSpreadShoot, onMissileShoot, score = 0, onScoreUpdate, onEnemyCarBounce, onPlayerCrash }: CarProps) {
+function Car({ worldPositionRef, position = [0, 0, 0], onPositionChange, obstacles = [], onObstacleCollected, onRewardCollected, onShoot, onSpreadShoot, onMissileShoot, score = 0, onScoreUpdate, onEnemyCarBounce, onPlayerCrash }: CarProps) {
   const carRef = useRef<Group>(null)
   const shakeRef = useRef(0) // camera impact shake amplitude (ref: no re-renders)
+  const previousCameraTarget = useRef({ x: 0, y: 4, z: 6 })
   const rollRef = useRef(0) // camera banking angle (ref: no re-renders)
   
   // Hooks
@@ -234,12 +237,16 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     const targetZ = physics.carPositionRef.current.z + 6  // Closer camera behind car
     const targetY = 4  // Lower camera height
 
-    // Gentler camera following - slower interpolation for stability
-    const cameraLerpFactor = 0.1  // Much slower than delta * 3
-    camera.position.x += (targetX - camera.position.x) * cameraLerpFactor
-    camera.position.z += (targetZ - camera.position.z) * cameraLerpFactor
-    camera.position.y += (targetY - camera.position.y) * cameraLerpFactor
-    
+    const previous = previousCameraTarget.current
+    camera.position.x = followMovingTarget(camera.position.x, previous.x, targetX, delta)
+    camera.position.y = followMovingTarget(camera.position.y, previous.y, targetY, delta)
+    camera.position.z = followMovingTarget(camera.position.z, previous.z, targetZ, delta)
+    previous.x = targetX; previous.y = targetY; previous.z = targetZ
+
+    // Publish the current simulation position before environment frame callbacks.
+    worldPositionRef.current.x = physics.carPositionRef.current.x
+    worldPositionRef.current.z = physics.carPositionRef.current.z
+
     // Impact shake — decaying camera jolt on crashes (ref-driven, no state)
     if (shakeRef.current > 0.001) {
       const st = state.clock.elapsedTime
@@ -294,7 +301,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     // if (onDistanceChange) {
     //   onDistanceChange(totalDistance)
     // }
-  })
+  }, -1) // Physics/camera precede environment updates and rendering.
 
   return (
     <>

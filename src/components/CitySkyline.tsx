@@ -1,3 +1,4 @@
+import { WorldPositionRef } from '../utils/motion'
 import { memo, useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { BufferGeometry, CanvasTexture, CylinderGeometry, ExtrudeGeometry, InstancedMesh, Matrix4, MeshPhysicalMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, RepeatWrapping, Shape, SRGBColorSpace, Vector3 } from 'three'
@@ -52,7 +53,7 @@ function build(kind:number){
  const merge=(parts:BufferGeometry[])=>{const g=mergeGeometries(parts,false)!;parts.forEach(p=>p.dispose());g.computeBoundingSphere();return g}
  return {width,depth,geometry:[merge(stone),merge(glass),merge(metal),merge(warm),merge(cool)]}
 }
-export default memo(function CitySkyline({carZ=0}:{carZ?:number}){
+export default memo(function CitySkyline({worldPositionRef}:{worldPositionRef:WorldPositionRef}){
  const refs=useRef<(InstancedMesh|null)[]>([])
  const resources=useMemo(()=>{
   const map=stoneMap()
@@ -69,6 +70,7 @@ export default memo(function CitySkyline({carZ=0}:{carZ?:number}){
  const scratch=useMemo(()=>({m:new Matrix4(),p:new Vector3(),s:new Vector3(1,1,1),q:new Quaternion(),axis:new Vector3(0,1,0)}),[])
  const last=useRef(NaN)
  useFrame(()=>{
+  const carZ=worldPositionRef.current.z
   if(Math.abs(carZ-last.current)<.1)return;last.current=carZ
   const counts=Array(6).fill(0)
   for(let i=0;i<COUNT;i++){
