@@ -3,3 +3,12 @@ node_modules
 # Audio files
 *.wav
 public/ost/archive/
+.vercel
+.env*.local
+
+# Local metadata and runtime assets copied by Vite
+.DS_Store
+dist/hdri/
+dist/models/
+dist/ost/
+dist/textures/

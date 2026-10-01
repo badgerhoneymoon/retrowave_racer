@@ -20,28 +20,36 @@ const SCRATCH_DIRECTION = new Vector3()
 // Pre-create geometries and materials to avoid runtime allocations and shader compile hitches
 const MISSILE_BODY_GEO = new CylinderGeometry(0.15, 0.3, 1.5)
 const MISSILE_BODY_MAT = new MeshStandardMaterial({
-  color: '#ff0040',
-  emissive: '#ff0040',
-  emissiveIntensity: 0.3,
+  color: '#2a1420',
+  emissive: '#ff7a1a',
+  emissiveIntensity: 0.45,
+  metalness: 0.7,
+  roughness: 0.3,
 })
 
 const MISSILE_NOSE_GEO = new ConeGeometry(0.15, 0.5)
 const MISSILE_NOSE_MAT = new MeshStandardMaterial({
-  color: '#ffff00',
-  emissive: '#ffff00',
-  emissiveIntensity: 0.5,
+  color: '#fff3d0',
+  emissive: '#ffb300',
+  emissiveIntensity: 1.6,
+  toneMapped: false,
 })
 
 const FIN_GEO = new BoxGeometry(0.1, 0.4, 0.05)
-const FIN_MAT = new MeshStandardMaterial({ color: '#ff6600' })
+const FIN_MAT = new MeshStandardMaterial({
+  color: '#ff7a1a',
+  emissive: '#ff4400',
+  emissiveIntensity: 0.6,
+})
 
 const THRUSTER_GEO = new SphereGeometry(0.3)
 const THRUSTER_MAT = new MeshStandardMaterial({
-  color: '#00ffff',
-  emissive: '#00ffff',
-  emissiveIntensity: 1.5,
+  color: '#ffe9a8',
+  emissive: '#ff9a3c',
+  emissiveIntensity: 2.4,
   transparent: true,
-  opacity: 0.8,
+  opacity: 0.9,
+  toneMapped: false,
 })
 
 

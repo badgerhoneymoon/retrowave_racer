@@ -1,4 +1,5 @@
 import { ObstacleData } from './collision'
+import { roadCenterAt } from './roadCurve'
 
 export interface ObstacleConfig {
   minSpacing: number
@@ -57,17 +58,21 @@ export const generateObstaclesForRange = (
     }
     
     // For cars, choose from car lanes; for rewards/cones, use all lanes including center
+    // Lane offsets are relative to the road centerline at this Z (the road curves)
+    const roadCenter = roadCenterAt(currentZ)
     let x: number
     let velocity: number | undefined
     let lane: 'left' | 'right' | undefined
-    
+
     if (type === 'car') {
-      // Cars only spawn in left/right lanes, not center
+      // Cars only spawn in left/right lanes, not center.
+      // Direction comes from the lane INDEX, not a float compare on
+      // (x - roadCenter) — that had epsilon misses and put wrong-direction
+      // cars in lanes randomly.
       const laneIndex = Math.floor(Math.random() * allLanes.length)
-      x = allLanes[laneIndex]
-      
-      // Assign velocity based on lane
-      if (leftLanes.includes(x)) {
+      x = roadCenter + allLanes[laneIndex]
+
+      if (laneIndex < leftLanes.length) {
         velocity = 30  // Oncoming traffic (positive = towards camera)
         lane = 'left'
       } else {
@@ -78,19 +83,19 @@ export const generateObstaclesForRange = (
       // Rocket launchers only spawn on left side of road
       const leftSidePositions = [-12, -6, 0] // Left lanes + center
       const laneIndex = Math.floor(Math.random() * leftSidePositions.length)
-      x = leftSidePositions[laneIndex]
+      x = roadCenter + leftSidePositions[laneIndex]
       // Static obstacles don't have velocity
     } else if (type === 'triple_rocket') {
       // Triple rocket boxes spawn on right side of road
       const rightSidePositions = [0, 6, 12] // Center + right lanes
       const laneIndex = Math.floor(Math.random() * rightSidePositions.length)
-      x = rightSidePositions[laneIndex]
+      x = roadCenter + rightSidePositions[laneIndex]
       // Static obstacles don't have velocity
     } else {
       // Rewards and cones can spawn in any lane including center
       const allPositions = [-12, -6, 0, 6, 12]
       const laneIndex = Math.floor(Math.random() * allPositions.length)
-      x = allPositions[laneIndex]
+      x = roadCenter + allPositions[laneIndex]
       // Static obstacles don't have velocity
     }
     
@@ -129,8 +134,12 @@ export const updateMovingObstacles = (
       }
       
       // Move car based on its current velocity
-      updatedObstacle.z = updatedObstacle.z + (updatedObstacle.velocity || 0) * deltaTime
-      
+      const oldZ = updatedObstacle.z
+      const newZ = oldZ + (updatedObstacle.velocity || 0) * deltaTime
+      updatedObstacle.z = newZ
+      // Traffic follows the road's centerline as it advances around bends
+      updatedObstacle.x = updatedObstacle.x + (roadCenterAt(newZ) - roadCenterAt(oldZ))
+
       return updatedObstacle
     }
     return obstacle

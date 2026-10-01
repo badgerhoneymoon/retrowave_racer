@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
 import {
   Group,
@@ -43,14 +43,24 @@ function MissileTrail({ missilePosition, isActive }: MissileTrailProps) {
   const sphereMaterial = useMemo(
     () =>
       new MeshStandardMaterial({
-        color: '#ff6600',
-        emissive: '#ff4400',
-        emissiveIntensity: 1.5,
+        color: '#ffd2a8',
+        emissive: '#ff7a1a',
+        emissiveIntensity: 2,
         transparent: true,
-        opacity: 0.8,
+        opacity: 0.85,
+        toneMapped: false,
       }),
     []
   )
+
+  // Release GPU resources when the missile unmounts
+  useEffect(() => {
+    return () => {
+      lineGeometry.dispose()
+      sphereGeometry.dispose()
+      sphereMaterial.dispose()
+    }
+  }, [lineGeometry, sphereGeometry, sphereMaterial])
 
   useFrame(() => {
     if (!isActive || !trailRef.current) return
@@ -118,11 +128,12 @@ function MissileTrail({ missilePosition, isActive }: MissileTrailProps) {
   return (
     <group ref={trailRef}>
       <lineSegments geometry={lineGeometry}>
-        <lineBasicMaterial 
-          color="#ff4400" 
-          transparent 
-          opacity={0.6}
+        <lineBasicMaterial
+          color="#ff9a3c"
+          transparent
+          opacity={0.75}
           linewidth={2}
+          toneMapped={false}
         />
       </lineSegments>
       <instancedMesh

@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react'
-import { CanvasTexture, Group, NearestFilter } from 'three'
+import { CanvasTexture, Group, LinearFilter } from 'three'
 import { useFrame } from '@react-three/fiber'
+import { roadCenterAt } from '../utils/roadCurve'
 
 function createSunTexture() {
   const size = 512
@@ -9,34 +10,56 @@ function createSunTexture() {
   canvas.height = size
   const ctx = canvas.getContext('2d')!
 
-  // Create vertical gradient (top → bottom)
+  // Vertical gradient (top → bottom)
   const gradient = ctx.createLinearGradient(0, 0, 0, size)
-  gradient.addColorStop(0, '#ffe92d') // bright yellow
-  gradient.addColorStop(0.4, '#ff8a00') // orange
-  gradient.addColorStop(1, '#ff0080') // magenta / pink
+  gradient.addColorStop(0, '#fff3a0') // pale hot yellow
+  gradient.addColorStop(0.35, '#ffb300') // amber
+  gradient.addColorStop(0.65, '#ff5e3a') // ember orange
+  gradient.addColorStop(1, '#ff2d78') // hot pink
   ctx.fillStyle = gradient
 
-  // Draw the circular sun
   ctx.beginPath()
   ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2)
   ctx.closePath()
   ctx.fill()
 
-  // Cut out horizontal stripes for the retro look
+  // Cut horizontal stripes — thin at the equator, growing toward the base
   ctx.globalCompositeOperation = 'destination-out'
-  const stripeCount = 7
-  const stripeHeight = size * 0.05
-  const startY = size * 0.25
-  const gap = stripeHeight * 1.5
-  for (let i = 0; i < stripeCount; i++) {
-    const y = startY + i * gap
-    ctx.fillRect(0, y, size, stripeHeight)
+  let y = size * 0.52
+  let stripe = size * 0.012
+  while (y < size) {
+    ctx.fillRect(0, y, size, stripe)
+    y += stripe + size * 0.045
+    stripe *= 1.55
   }
   ctx.globalCompositeOperation = 'source-over'
 
   const texture = new CanvasTexture(canvas)
   texture.needsUpdate = true
-  texture.magFilter = NearestFilter // crisp stripes
+  texture.magFilter = LinearFilter
+  return texture
+}
+
+function createHaloTexture() {
+  const size = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')!
+
+  const gradient = ctx.createRadialGradient(
+    size / 2, size / 2, 0,
+    size / 2, size / 2, size / 2
+  )
+  gradient.addColorStop(0, 'rgba(255, 120, 90, 0.55)')
+  gradient.addColorStop(0.35, 'rgba(255, 45, 120, 0.28)')
+  gradient.addColorStop(0.7, 'rgba(160, 40, 160, 0.10)')
+  gradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, size, size)
+
+  const texture = new CanvasTexture(canvas)
+  texture.needsUpdate = true
   return texture
 }
 
@@ -47,16 +70,18 @@ interface RetrowaveSunProps {
 function RetrowaveSun({ carZ = 0 }: RetrowaveSunProps) {
   const sunRef = useRef<Group>(null)
   const texture = useMemo(createSunTexture, [])
+  const haloTexture = useMemo(createHaloTexture, [])
 
   // Keep the sun a fixed distance ahead of the car (like the road) for smooth movement
-  useFrame(() => {
+  useFrame(({ clock }) => {
     if (!sunRef.current) return
-    
-    // Position sun far ahead on the horizon, following car smoothly
-    const targetZ = carZ - 120  // Always 120 units ahead of car
-    const targetX = 0  // Always centered
-    const targetY = 8  // Lower on horizon
-    
+
+    // Position sun far ahead on the horizon, following car smoothly.
+    // It hangs over the road's vanishing point, so it sways with the curves.
+    const targetZ = carZ - 140 // Always 140 units ahead of car
+    const targetX = roadCenterAt(targetZ)
+    const targetY = 8 + Math.sin(clock.elapsedTime * 0.4) * 0.4 // Barely-there float
+
     // Gentle interpolation to prevent any jerkiness (same as camera)
     const sunLerpFactor = 0.1
     sunRef.current.position.x += (targetX - sunRef.current.position.x) * sunLerpFactor
@@ -66,10 +91,22 @@ function RetrowaveSun({ carZ = 0 }: RetrowaveSunProps) {
 
   return (
     <group ref={sunRef}>
+      {/* Glow halo behind the sun */}
+      <mesh position={[0, 0, -2]}>
+        <planeGeometry args={[80, 80]} />
+        <meshBasicMaterial
+          map={haloTexture}
+          transparent
+          depthWrite={false}
+          fog={false}
+          toneMapped={false}
+        />
+      </mesh>
+      {/* Striped sun disc */}
       <mesh>
-        <circleGeometry args={[20, 64]} />
+        <circleGeometry args={[15, 64]} />
         {/* eslint-disable-next-line react/no-unknown-property */}
-        <meshBasicMaterial map={texture} transparent toneMapped={false} />
+        <meshBasicMaterial map={texture} transparent toneMapped={false} fog={false} />
       </mesh>
     </group>
   )

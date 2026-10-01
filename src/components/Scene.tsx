@@ -1,10 +1,18 @@
-import { useState, useCallback, memo } from 'react'
-import { Perf } from 'r3f-perf'
+import { useState, useCallback, useEffect, useRef, memo } from 'react'
+import { DirectionalLight, Object3D } from 'three'
+import { Environment } from '@react-three/drei'
 import Car from './Car'
 import SmoothRoad from './SmoothRoad'
 import ObstacleManager from './ObstacleManager'
 import ExplosionEffect from './ExplosionEffect'
 import RetrowaveSun from './RetrowaveSun'
+import Sky from './Sky'
+import Mountains from './Mountains'
+import CitySkyline from './CitySkyline'
+import Bloom from './Bloom'
+import WetRoad from './WetRoad'
+import FlashLights from './FlashLights'
+import FpsProbe from './FpsProbe'
 import PlasmaProjectile from './PlasmaProjectile'
 import AreaMissile from './AreaMissile'
 import MissileExplosion from './MissileExplosion'
@@ -42,6 +50,29 @@ function Scene() {
   const [missiles, setMissiles] = useState<Missile[]>([])
   const [missileExplosions, setMissileExplosions] = useState<MissileExplosion[]>([])
   const [score, setScore] = useState(0)
+  // Wet road costs a full extra scene render per frame — OFF by default,
+  // toggle with T (A/B for frame rate)
+  const [wetRoadEnabled, setWetRoadEnabled] = useState(false)
+
+  // T toggles the wet reflective road layer (perf A/B switch)
+  useEffect(() => {
+    const handleToggle = (event: KeyboardEvent) => {
+      if (event.code === 'KeyT' && !event.repeat) {
+        setWetRoadEnabled(v => !v)
+      }
+    }
+    window.addEventListener('keydown', handleToggle)
+    return () => window.removeEventListener('keydown', handleToggle)
+  }, [])
+
+  // Sun key light + its target, both riding with the car so lighting stays constant
+  const sunLightRef = useRef<DirectionalLight>(null)
+  const sunTargetRef = useRef<Object3D>(null)
+  useEffect(() => {
+    if (sunLightRef.current && sunTargetRef.current) {
+      sunLightRef.current.target = sunTargetRef.current
+    }
+  }, [])
 
   const handleObstaclesUpdate = (newObstacles: ObstacleData[]) => {
     setObstacles(newObstacles)
@@ -60,6 +91,12 @@ function Scene() {
       position: position
     }])
   }
+
+  // Player crash: spark burst at the contact point (reuses the explosion pool)
+  const handlePlayerCrash = useCallback((position: [number, number, number]) => {
+    const explosionId = `explosion-${Date.now()}-${Math.random()}`
+    setExplosions(prev => [...prev, { id: explosionId, position }])
+  }, [])
 
   const handleExplosionComplete = (explosionId: string) => {
     setExplosions(prev => prev.filter(exp => exp.id !== explosionId))
@@ -146,7 +183,6 @@ function Scene() {
   }, [])
 
   const handleMissileShoot = useCallback((startPosition: [number, number, number], angle: number, carVelocity: number) => {
-    // Use React's unstable_batchedUpdates to prevent multiple re-renders
     const missileId = `missile-${Date.now()}-${Math.random()}`
     const newMissile = {
       id: missileId,
@@ -154,13 +190,11 @@ function Scene() {
       angle: angle,
       carVelocity: carVelocity
     }
-    
-    console.log('🚀 Firing missile. Adding to array')
+
     setMissiles(prev => [...prev, newMissile])
   }, [])
 
   const handleMissileHit = useCallback((missileId: string, explosionCenter: [number, number, number], hitObstacleIds: string[]) => {
-    console.log('💥 Missile hit ground/target:', missileId, 'destroying', hitObstacleIds.length, 'cars')
     // Remove the missile
     setMissiles(prev => prev.filter(missile => missile.id !== missileId))
     
@@ -186,7 +220,6 @@ function Scene() {
   }, [])
 
   const handleMissileExpire = useCallback((missileId: string) => {
-    console.log('⏰ Missile expired (distance limit):', missileId)
     setMissiles(prev => prev.filter(missile => missile.id !== missileId))
   }, [])
 
@@ -211,31 +244,41 @@ function Scene() {
 
   return (
     <>
-      <Perf 
-        position="top-left" 
-        style={{ 
-          position: 'absolute', 
-          top: '250px', 
-          left: '10px',
-          zIndex: 50 
-        }}
-        showGraph={true}
-        minimal={false}
-      />
-      <ambientLight intensity={0.3} />
-      <directionalLight 
-        position={[10, 10, 5]} 
-        intensity={1}
-        color="#ff6600"
-      />
-      <pointLight 
-        position={[0, 10, 0]} 
-        intensity={0.5}
-        color="#ff00ff"
-      />
-      
+      {/* Atmosphere */}
+      <fog attach="fog" args={['#160527', 80, 250]} />
+      <Sky />
+      {/* Image-based lighting: real reflections on the metal/paint (sky stays procedural) */}
+      <Environment files="/hdri/venice_sunset_1k.hdr" background={false} />
+      <Bloom />
+
+      {/* Lighting rig — violet sky bounce + warm sun key + neon rim lights */}
+      <ambientLight intensity={0.18} color="#8a7bff" />
+      <hemisphereLight args={['#3b1b6e', '#0a0510', 0.6]} />
+      <group position={[0, 0, carPosition.z]}>
+        <directionalLight
+          ref={sunLightRef}
+          position={[14, 26, -50]}
+          intensity={1.25}
+          color="#ff9a5c"
+        />
+        <object3D ref={sunTargetRef} position={[0, 0, 10]} />
+        {/* Neon rim lights flanking the road near the car */}
+        <pointLight position={[-16, 5, -25]} intensity={60} distance={70} decay={2} color="#ff2bd6" />
+        <pointLight position={[16, 5, -25]} intensity={60} distance={70} decay={2} color="#00f0ff" />
+      </group>
+
+      {/* Persistent pooled flash lights for explosions/crashes — constant
+          light count, so no mid-game shader recompiles */}
+      <FlashLights />
+
+      {/* FPS readout → #fps-meter DOM node (direct DOM, no re-renders) */}
+      <FpsProbe />
+
       <RetrowaveSun carZ={carPosition.z} />
+      <Mountains carZ={carPosition.z} />
+      <CitySkyline carZ={carPosition.z} />
       <SmoothRoad carZ={carPosition.z} />
+      {wetRoadEnabled && <WetRoad carZ={carPosition.z} />}
       <ObstacleManager 
         carPosition={carPosition} 
         obstacles={obstacles}
@@ -253,6 +296,7 @@ function Scene() {
         score={score}
         onScoreUpdate={setScore}
         onEnemyCarBounce={handleEnemyCarBounce}
+        onPlayerCrash={handlePlayerCrash}
       />
       
       {/* Render explosion effects */}

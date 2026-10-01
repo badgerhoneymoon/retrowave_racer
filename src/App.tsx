@@ -4,6 +4,7 @@ import { initAutoStartOnUserGesture } from './utils/audio'
 import Scene from './components/Scene'
 import HUD from './components/HUD'
 import ControlHints from './components/ControlHints'
+import './hud.css'
 
 function App() {
   useEffect(() => {
@@ -14,13 +15,38 @@ function App() {
     <div style={{ width: '100vw', height: '100vh' }}>
       <Canvas
         camera={{ position: [0, 5, 10], fov: 75 }}
-        gl={{ antialias: true }}
+        dpr={[1, 1.5]}
+        gl={{ antialias: true, toneMappingExposure: 1.05 }}
       >
-        <color attach="background" args={['#0a0a0a']} />
+        <color attach="background" args={['#070213']} />
         <Scene />
       </Canvas>
+
+      {/* CRT scanlines + vignette (pointer-events: none) */}
+      <div className="crt-overlay" />
+      <div className="vignette-overlay" />
+
       <HUD />
       <ControlHints />
+
+      {/* Live FPS readout (updated from inside the Canvas via direct DOM) */}
+      <div
+        id="fps-meter"
+        style={{
+          position: 'fixed',
+          left: 12,
+          bottom: 12,
+          zIndex: 30,
+          pointerEvents: 'none',
+          fontFamily: "'Courier New', monospace",
+          fontSize: 13,
+          fontWeight: 700,
+          letterSpacing: 1,
+          color: '#00f0ff',
+          textShadow: '0 0 6px rgba(0, 240, 255, 0.8)',
+          opacity: 0.85,
+        }}
+      />
     </div>
   )
 }

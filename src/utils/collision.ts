@@ -23,6 +23,8 @@ export interface CollisionResult {
   isReward?: boolean
   isRocketLauncher?: boolean
   isTripleRocket?: boolean
+  // Direction from the obstacle center toward the car (contact normal), normalized
+  impactNormal?: { x: number; z: number }
   enemyCarBounce?: {
     newVelocity: number
     bounceDistance: number
@@ -164,7 +166,20 @@ export const checkCollisions = (
         }
       }
       
-      return { hit: true, obstacle, isBoost, isReward, isRocketLauncher, isTripleRocket, enemyCarBounce }
+      // Contact normal: from obstacle center toward car center, normalized
+      let nx = carX - obstacle.x
+      let nz = carZ - obstacle.z
+      const nLen = Math.sqrt(nx * nx + nz * nz)
+      if (nLen > 0.0001) {
+        nx /= nLen
+        nz /= nLen
+      } else {
+        nx = 0
+        nz = 1
+      }
+      const impactNormal = { x: nx, z: nz }
+
+      return { hit: true, obstacle, isBoost, isReward, isRocketLauncher, isTripleRocket, enemyCarBounce, impactNormal }
     }
   }
   

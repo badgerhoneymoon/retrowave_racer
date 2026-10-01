@@ -51,8 +51,10 @@ function ObstacleManager({ carPosition, obstacles, onObstaclesUpdate }: Obstacle
       {obstacles.map(obstacle => (
         <Obstacle
           key={obstacle.id}
+          obstacleId={obstacle.id}
           position={[obstacle.x, 0, obstacle.z]}
           type={obstacle.type}
+          velocity={obstacle.velocity}
         />
       ))}
     </group>

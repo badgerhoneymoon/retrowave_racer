@@ -1,4 +1,5 @@
 import { useRef } from 'react'
+import { roadCenterAt } from '../utils/roadCurve'
 
 interface UseCarPhysicsProps {
   boostTransitionSpeed: number
@@ -24,6 +25,8 @@ export function useCarPhysics() {
   const carRotationRef = useRef(0)
   const speedRef = useRef(0)
   const steerAngleRef = useRef(0)
+  // Velocity direction — lags the heading under grip loss (this is the drift)
+  const velHeadingRef = useRef(0)
 
   const updatePhysics = ({ boostTransitionSpeed, delta, keys }: UseCarPhysicsProps) => {
     // Car physics constants (modified by smooth boost transition)
@@ -32,12 +35,18 @@ export function useCarPhysics() {
     const acceleration = 1.8 * boostTransitionSpeed // Increased proportionally
     const deceleration = 0.8
     const brakeDeceleration = 2.0
-    const maxSteerAngle = 0.8
-    const steerSpeed = 3.0
+
+    // --- Steering mechanics: bicycle-ish model + grip/drift ---
+    const maxSteerAngle = 0.8        // wheel angle limit (rad)
+    const steerRate = 3.5            // how fast the wheel turns (rad/s)
+    const wheelbase = 34             // yawRate = v * tan(wheel) / wheelbase
+    const highSpeedStability = 0.006 // yaw effectiveness falloff with speed
+    const gripBase = 8               // velocity realigns with heading at this rate...
+    const gripSpeedLoss = 0.06       // ...reduced by speed → the drift
 
     // Update speed based on input (direct ref modification - no React re-render)
     let newSpeed = speedRef.current
-    
+
     if (keys.up) {
       newSpeed += acceleration * delta
     } else if (keys.down) {
@@ -50,87 +59,91 @@ export function useCarPhysics() {
         newSpeed = Math.min(0, newSpeed + deceleration * delta)
       }
     }
-    
+
     speedRef.current = Math.max(-maxSpeed * 0.5, Math.min(maxSpeed, newSpeed))
 
-    // Update steering angle based on input (direct ref modification - no React re-render)
-    let newSteerAngle = steerAngleRef.current
-    
-    if (keys.left) {
-      newSteerAngle += steerSpeed * delta  // Left should be positive for correct mesh rotation
-    } else if (keys.right) {
-      newSteerAngle -= steerSpeed * delta  // Right should be negative for correct mesh rotation
-    } else {
-      // Return steering to center
-      if (Math.abs(newSteerAngle) > 0.1) {
-        newSteerAngle *= 0.8
-      } else {
-        newSteerAngle = 0
-      }
-    }
-    
-    steerAngleRef.current = Math.max(-maxSteerAngle, Math.min(maxSteerAngle, newSteerAngle))
+    // Steering wheel: rate-limited toward the input target, self-centering
+    // (frame-rate independent, replaces the old per-frame 0.8 decay)
+    const steerTarget = keys.left ? maxSteerAngle : keys.right ? -maxSteerAngle : 0
+    const steerDelta = steerTarget - steerAngleRef.current
+    const maxSteerStep = steerRate * delta
+    steerAngleRef.current += Math.max(-maxSteerStep, Math.min(maxSteerStep, steerDelta))
 
-    // Update car rotation based on physics (direct ref modification - no React re-render)
-    // Make steering more responsive at low speeds, normal at high speeds
-    const absSpeed = Math.abs(speedRef.current)
-    let speedFactor
-    
-    if (absSpeed < 0.2) {
-      // Very low speed (like after collision) - very maneuverable
-      speedFactor = 0.8
-    } else if (absSpeed < 0.4) {
-      // Low speed - more maneuverable than high speed
-      speedFactor = 0.6
-    } else {
-      // Normal/high speed - standard responsiveness
-      speedFactor = Math.max(0.3, absSpeed)
-    }
-    
-    const turnRate = steerAngleRef.current * speedFactor * 2.0
-    carRotationRef.current += turnRate * delta
+    // Yaw from the bicycle model — less effective at speed, nimble when slow
+    const v = speedRef.current * 60 // world units/sec
+    const absV = Math.abs(v)
+    const stability = 1 / (1 + absV * highSpeedStability)
+    const lowSpeedAgility = 1 + Math.max(0, (12 - absV) / 12) * 0.6
+    const yawRate = (v * Math.tan(steerAngleRef.current)) / wheelbase * stability * lowSpeedAgility
+    carRotationRef.current += yawRate * delta
 
-    // Calculate potential new position using trigonometry
-    const sinAngle = Math.sin(carRotationRef.current)
-    const cosAngle = Math.cos(carRotationRef.current)
-    const newX = carPositionRef.current.x - sinAngle * speedRef.current * delta * 60  // Fixed: - for correct left/right movement
-    const newZ = carPositionRef.current.z - cosAngle * speedRef.current * delta * 60  // Fixed: - instead of +
+    // Grip/drift: the velocity direction lags the heading at speed.
+    // No steering input → velocity realigns → still dead straight with ↑.
+    const grip = gripBase / (1 + absV * gripSpeedLoss)
+    let headingDelta = carRotationRef.current - velHeadingRef.current
+    headingDelta = Math.atan2(Math.sin(headingDelta), Math.cos(headingDelta))
+    velHeadingRef.current += headingDelta * Math.min(1, grip * delta)
 
-    return { newX, newZ, sinAngle, cosAngle }
+    // Advance along the VELOCITY direction — the drift slide. The body keeps
+    // pointing at carRotation, so it visibly angles into the slide.
+    const sinMove = Math.sin(velHeadingRef.current)
+    const cosMove = Math.cos(velHeadingRef.current)
+    const newX = carPositionRef.current.x - sinMove * v * delta
+    const newZ = carPositionRef.current.z - cosMove * v * delta
+
+    return { newX, newZ, sinAngle: sinMove, cosAngle: cosMove }
   }
 
   // Apply position update (called after collision detection)
   const updatePosition = (x: number, z: number) => {
+    const center = roadCenterAt(z)
     carPositionRef.current = {
-      x: Math.max(-18, Math.min(18, x)), // Match full grid width (-20 to +20 with car width margin)
+      x: Math.max(center - 18, Math.min(center + 18, x)), // Clamp to the curving road edges
       z
     }
   }
 
-  // Handle collision bounce physics
-  const handleCollisionBounce = (sinAngle: number, cosAngle: number) => {
+  // Handle collision bounce physics along the contact normal.
+  // Returns the impact speed (0 if negligible) so callers can scale shake/FX.
+  const handleCollisionBounce = (normalX: number, normalZ: number): number => {
     const currentSpeed = Math.abs(speedRef.current)
     const speedThreshold = 0.05 // No bounce below this speed
-    
+
     if (currentSpeed < speedThreshold) {
       // Very slow collision - just stop, no bounce
       speedRef.current = 0
-      // Position stays the same - no bounce movement
-    } else {
-      // Significant speed - bounce back proportional to speed (more dramatic at high speeds)
-      const bounceDistance = currentSpeed * 4.5 // Increased from 3.0 for more bounce
-      const bounceX = carPositionRef.current.x + sinAngle * bounceDistance
-      const bounceZ = carPositionRef.current.z + cosAngle * bounceDistance
-      
-      // Apply bounce position (clamped to road bounds)
-      carPositionRef.current = {
-        x: Math.max(-18, Math.min(18, bounceX)),
-        z: bounceZ
-      }
-      
-      // Reverse speed more dramatically at high speeds
-      speedRef.current = -currentSpeed * 0.5 // Increased from 0.3 for stronger bounce
+      return 0
     }
+
+    const impactSpeed = currentSpeed
+
+    // Push the car out along the contact normal (away from the obstacle)
+    const bounceDistance = currentSpeed * 4.5
+    const bounceX = carPositionRef.current.x + normalX * bounceDistance
+    const bounceZ = carPositionRef.current.z + normalZ * bounceDistance
+
+    const center = roadCenterAt(bounceZ)
+    carPositionRef.current = {
+      x: Math.max(center - 18, Math.min(center + 18, bounceX)),
+      z: bounceZ
+    }
+
+    // Response depends on impact geometry:
+    // - head-on (normal mostly along Z): thrown backwards, heavy speed loss
+    // - glancing (normal mostly along X): scrub speed, keep driving
+    const headOn = Math.abs(normalZ) > Math.abs(normalX)
+    if (headOn) {
+      speedRef.current = -currentSpeed * 0.45
+    } else {
+      speedRef.current = currentSpeed * 0.55
+    }
+
+    // Steering kick away from the impact for a visible knock
+    steerAngleRef.current += (normalX > 0 ? -1 : 1) * 0.22
+    // Knock the slide direction too, so impacts shove the car's momentum
+    velHeadingRef.current += (normalX > 0 ? -1 : 1) * 0.12
+
+    return impactSpeed
   }
 
   // Get current physics state for external use

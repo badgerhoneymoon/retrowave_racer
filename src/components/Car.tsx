@@ -1,12 +1,13 @@
 import { useRef, useState, useEffect, memo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Group } from 'three'
+import { Group, PerspectiveCamera } from 'three'
 import { ObstacleData, checkCollisions, getObstaclesInRange } from '../utils/collision'
 import { useCarWeapons } from '../hooks/useCarWeapons'
 import { useCarPhysics } from '../hooks/useCarPhysics'
 import { useCarPowerups } from '../hooks/useCarPowerups'
 import { useCarHUD } from '../hooks/useCarHUD'
 import CarVisual from './CarVisual'
+import SpeedLines from './SpeedLines'
 import { toggleSound } from '../utils/audio'
 
 interface CarProps {
@@ -23,10 +24,13 @@ interface CarProps {
   score?: number
   onScoreUpdate?: (newScore: number) => void
   onEnemyCarBounce?: (obstacleId: string, newVelocity: number, bounceDistance: number) => void
+  onPlayerCrash?: (position: [number, number, number]) => void
 }
 
-function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacleCollected, onRewardCollected, onShoot, onSpreadShoot, onMissileShoot, score = 0, onScoreUpdate, onEnemyCarBounce }: CarProps) {
+function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacleCollected, onRewardCollected, onShoot, onSpreadShoot, onMissileShoot, score = 0, onScoreUpdate, onEnemyCarBounce, onPlayerCrash }: CarProps) {
   const carRef = useRef<Group>(null)
+  const shakeRef = useRef(0) // camera impact shake amplitude (ref: no re-renders)
+  const rollRef = useRef(0) // camera banking angle (ref: no re-renders)
   
   // Hooks
   const physics = useCarPhysics()
@@ -145,7 +149,7 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     }
 
     // Update physics using the hook
-    const { newX, newZ, sinAngle, cosAngle } = physics.updatePhysics({
+    const { newX, newZ } = physics.updatePhysics({
       boostTransitionSpeed,
       delta,
       keys
@@ -213,19 +217,28 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
         // Continue movement - don't stop for triple rocket
         physics.updatePosition(newX, newZ)
       } else {
-        // Regular collision - bounce only if speed is significant
+        // Regular collision - bounce along the contact normal
         setIsColliding(true)
-        
+
         // Handle enemy car bounce if collision data includes it
         if (collision.enemyCarBounce && onEnemyCarBounce && collision.obstacle) {
           onEnemyCarBounce(
-            collision.obstacle.id, 
-            collision.enemyCarBounce.newVelocity, 
+            collision.obstacle.id,
+            collision.enemyCarBounce.newVelocity,
             collision.enemyCarBounce.bounceDistance
           )
         }
-        
-        physics.handleCollisionBounce(sinAngle, cosAngle)
+
+        const normal = collision.impactNormal ?? { x: 0, z: 1 }
+        const impactSpeed = physics.handleCollisionBounce(normal.x, normal.z)
+
+        // Heavy impacts: camera jolt + spark burst at the contact point
+        if (impactSpeed > 0.15) {
+          shakeRef.current = Math.min(1, 0.25 + impactSpeed * 0.55)
+          if (onPlayerCrash) {
+            onPlayerCrash([physics.carPositionRef.current.x, 1, physics.carPositionRef.current.z])
+          }
+        }
       }
     } else {
       setIsColliding(false)
@@ -236,6 +249,8 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     if (carRef.current) {
       carRef.current.position.x = physics.carPositionRef.current.x
       carRef.current.position.z = physics.carPositionRef.current.z
+      // Rotation = steering only, so the car always points exactly where it
+      // is moving (no curve offset — that made the car look rear-first)
       carRef.current.rotation.y = physics.carRotationRef.current
     }
 
@@ -251,8 +266,34 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
     camera.position.z += (targetZ - camera.position.z) * cameraLerpFactor
     camera.position.y += (targetY - camera.position.y) * cameraLerpFactor
     
+    // Impact shake — decaying camera jolt on crashes (ref-driven, no state)
+    if (shakeRef.current > 0.001) {
+      const st = state.clock.elapsedTime
+      camera.position.x += Math.sin(st * 71.3) * shakeRef.current * 0.4
+      camera.position.y += Math.sin(st * 83.7 + 1.7) * shakeRef.current * 0.28
+      shakeRef.current = Math.max(0, shakeRef.current - delta * 2.2)
+    }
+
     // Make camera look at car
     camera.lookAt(physics.carPositionRef.current.x, 0, physics.carPositionRef.current.z)
+
+    // Camera banking — roll into the steering, weighted by speed
+    const speedAbs = Math.abs(physics.speedRef.current)
+    const rollTarget = physics.steerAngleRef.current * Math.min(1, speedAbs) * 0.085
+    rollRef.current += (rollTarget - rollRef.current) * Math.min(1, delta * 6)
+    camera.rotateZ(rollRef.current)
+
+    // Speed-based FOV kick — widens under boost, glides back when cruising.
+    // Projection matrix only touched while the FOV is actually changing.
+    const persp = camera as PerspectiveCamera
+    const speedRatio = Math.min(1, Math.abs(physics.speedRef.current) / 1.8)
+    const boostKick = Math.max(0, speedRatio - 0.45) / 0.55
+    const targetFov = 75 + boostKick * 13
+    const fovDelta = targetFov - persp.fov
+    if (Math.abs(fovDelta) > 0.02) {
+      persp.fov += fovDelta * Math.min(1, delta * 5)
+      persp.updateProjectionMatrix()
+    }
 
     // Report position to parent component – with smoother throttling
     if (onPositionChange) {
@@ -282,14 +323,19 @@ function Car({ position = [0, 0, 0], onPositionChange, obstacles = [], onObstacl
   })
 
   return (
-    <CarVisual 
-      ref={carRef}
-      position={position}
-      isColliding={isColliding}
-      spreadShotActive={weapons.spreadShotActive}
-      isBoosted={powerups.isBoosted}
-      tripleRocketActive={weapons.tripleRocketActive}
-    />
+    <>
+      <CarVisual
+        ref={carRef}
+        position={position}
+        isColliding={isColliding}
+        spreadShotActive={weapons.spreadShotActive}
+        isBoosted={powerups.isBoosted}
+        tripleRocketActive={weapons.tripleRocketActive}
+        speedRef={physics.speedRef}
+      />
+      {/* Boost speed streaks — reads physics refs directly, zero re-renders */}
+      <SpeedLines speedRef={physics.speedRef} carPositionRef={physics.carPositionRef} />
+    </>
   )
 }
 
